@@ -175,11 +175,12 @@ function formatSessionData(s) {
         total_way: 36,
         multipy: 0,
         currency_prefix: "R$ ",
-        currency_suffix: "",
+        currency_thousand: ".",
         currency_decimal: ",",
         bet_size_list: ["0.2", "0.5", "1", "2", "5", "10", "20", "50", "100"],
         bet_level_list: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        bet_amount: 1.0,
+        bet_amount: 0.01, // 1.0 / 100
+        credit: totalReal / 100,
         previous_session: false,
         game_state: "",
         feature_symbol: "",
@@ -303,13 +304,16 @@ app.post('/api/data/:token/spin', (req, res) => {
     let cs, ml, bet;
 
     if (rawBet && parseFloat(rawBet) > 0) {
-        // Jogo enviou valor total da aposta diretamente
-        bet = parseFloat(parseFloat(rawBet).toFixed(2));
+        // Jogo enviou valor total da aposta (provavelmente escalado)
+        bet = parseFloat((parseFloat(rawBet) * 100).toFixed(2));
         cs  = bet / 5;
         ml  = 1;
     } else {
         cs  = rawCs  ? parseFloat(rawCs)  : 0.2;
         ml  = rawMl  ? parseInt(rawMl)    : 1;
+        // Se cs/ml vierem do motor escalados, multiplicamos aqui
+        // No motor, se seleciona 1.0, ele pode enviar 0.01
+        if (cs < 0.1) cs = cs * 100; 
         bet = parseFloat((cs * ml * 5).toFixed(2));
     }
 
@@ -318,8 +322,13 @@ app.post('/api/data/:token/spin', (req, res) => {
         const mCs  = req.body.match(/cs=([\d\.]+)/);
         const mMl  = req.body.match(/ml=(\d+)/);
         const mBet = req.body.match(/bet=([\d\.]+)/);
-        if (mBet) { bet = parseFloat(mBet[1]); cs = bet / 5; ml = 1; }
-        else { cs = mCs ? parseFloat(mCs[1]) : 0.2; ml = mMl ? parseInt(mMl[1]) : 1; bet = parseFloat((cs * ml * 5).toFixed(2)); }
+        if (mBet) { bet = parseFloat(mBet[1]) * 100; cs = bet / 5; ml = 1; }
+        else { 
+            cs = mCs ? parseFloat(mCs[1]) : 0.2; 
+            if (cs < 0.1) cs = cs * 100;
+            ml = mMl ? parseInt(mMl[1]) : 1; 
+            bet = parseFloat((cs * ml * 5).toFixed(2)); 
+        }
     }
 
     console.log('[SPIN] cs:', cs, '| ml:', ml, '| bet calculado: R$', bet);
@@ -378,18 +387,18 @@ app.post('/api/data/:token/spin', (req, res) => {
                     success: true,
                     message: 'Spin success',
                     data: {
-                        credit: newBalance,
+                        credit: newBalance / 100,
                         freemode: false,
                         jackpot: 0,
                         free_spin: 0,
                         free_num: 0,
                         scaler: 0,
                         num_line: 5,
-                        bet_amount: bet,
+                        bet_amount: bet / 100,
                         feature_symbol: '',
                         pull: {
-                            WinAmount: win,
-                            WinOnDrop: win,
+                            WinAmount: win / 100,
+                            WinOnDrop: win / 100,
                             TotalWay: win > 0 ? 5 : 0,
                             FreeSpin: -1,
                             HasNewSpawn: false,
@@ -404,7 +413,7 @@ app.post('/api/data/:token/spin', (req, res) => {
                             MultiplyCount: 1,
                             SlotIcons: syms,
                             ActiveIcons: activeIcons,
-                            ActiveLines: activeLines,
+                            ActiveLines: activeLines.map(l => ({ ...l, payout: l.payout / 100, win_amount: l.win_amount / 100 })),
                             WinLogs: winLogs,
                             DropLine: 0,
                             DropLineData: [],
