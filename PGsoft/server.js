@@ -74,6 +74,26 @@ db.query(`
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `, () => {});
+
+    db.query(`
+      CREATE TABLE IF NOT EXISTS wins (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        token VARCHAR(255),
+        amount DOUBLE,
+        win_amount DOUBLE,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `, () => {});
+
+    db.query(`
+      CREATE TABLE IF NOT EXISTS losses (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        token VARCHAR(255),
+        amount DOUBLE,
+        bet_amount DOUBLE,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `, () => {});
 });
 
 // GERADORES DE DADOS PARA PAGAMENTO
@@ -189,6 +209,13 @@ app.post('/api/data/:token/spin', (req, res) => {
 
         const newBalance = totalBalance - betAmount + winAmount;
         db.query('UPDATE fortune_data SET real_balance = real_balance - ? + ? WHERE token = ?', [betAmount, winAmount, token], () => {
+            // REGISTRA NO HISTÓRICO
+            if (winAmount > 0) {
+                db.query('INSERT INTO wins (token, amount, win_amount) VALUES (?, ?, ?)', [token, betAmount, winAmount]);
+            } else {
+                db.query('INSERT INTO losses (token, amount, bet_amount) VALUES (?, ?, ?)', [token, betAmount, betAmount]);
+            }
+            
             res.json({
                 success: true,
                 data: {
@@ -207,6 +234,32 @@ app.post('/api/data/:token/spin', (req, res) => {
             });
         });
     });
+});
+
+app.post('/api/data/:token/histories', (req, res) => {
+    const token = req.params.token;
+    const query = `
+        SELECT id, token, win_amount as win, amount as bet, timestamp, 'win' as type FROM wins WHERE token = ?
+        UNION ALL
+        SELECT id, token, 0 as win, amount as bet, timestamp, 'loss' as type FROM losses WHERE token = ?
+        ORDER BY timestamp DESC LIMIT 20
+    `;
+    db.query(query, [token, token], (err, results) => {
+        if (err) return res.json({ success: true, data: { items: [] } });
+        const items = results.map(r => ({
+            id: r.id,
+            spin_date: new Date(r.timestamp).toISOString().split('T')[0],
+            spin_hour: new Date(r.timestamp).toTimeString().split(' ')[0],
+            total_bet: r.bet,
+            win_amount: r.win,
+            profit: r.win - r.bet
+        }));
+        res.json({ success: true, data: { items, totalRecord: items.length } });
+    });
+});
+
+app.get('/api/data/history/:id', (req, res) => {
+    res.json({ success: true, data: { result_data: [] } }); // Placeholder para não quebrar o motor
 });
 
 // MOTOR DO JOGO
