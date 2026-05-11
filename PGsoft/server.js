@@ -645,8 +645,8 @@ app.post('/api/data/history/:id', (req, res) => {
 });
 app.post('/api/auth/register', (req, res) => {
   try {
-    const { email, password, fullName, cpf, phone } = req.body;
-    if (!email || !password || !fullName) {
+    const { phone, password, fullName } = req.body;
+    if (!phone || !password || !fullName) {
         return res.status(400).json({ success: false, message: 'Campos obrigatórios faltando.' });
     }
     
@@ -655,10 +655,10 @@ app.post('/api/auth/register', (req, res) => {
     
     // R$ 25 de bônus inicial
     const query = `INSERT INTO fortune_data 
-      (email, password, fullName, cpf, phone, bonus_balance, credit, token, user_name, bet_amount, num_line, line_num) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      (email, phone, password, fullName, bonus_balance, credit, token, user_name, bet_amount, num_line, line_num) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     
-    db.query(query, [email, password, fullName, cpf, phone, 25.00, 25.00, token, displayName, 2, 5, 5], (err) => {
+    db.query(query, [phone, phone, password, fullName, 25.00, 25.00, token, displayName, 2, 5, 5], (err) => {
       if (err) {
         console.error('Erro no Registro:', err);
         if (err.message && err.message.includes('UNIQUE')) {
@@ -667,7 +667,7 @@ app.post('/api/auth/register', (req, res) => {
         return res.status(500).json({ success: false, message: 'Erro ao salvar no banco de dados.' });
       }
       
-      res.json({ success: true, token, user: { email, fullName, real_balance: 0, bonus_balance: 25.00, is_first_deposit: 0 } });
+      res.json({ success: true, token, user: { phone, fullName, real_balance: 0, bonus_balance: 25.00, is_first_deposit: 0 } });
     });
   } catch (error) {
     console.error('Erro Fatal no Registro:', error);
@@ -676,15 +676,15 @@ app.post('/api/auth/register', (req, res) => {
 });
 
 app.post('/api/auth/login', (req, res) => {
-  const { email, password } = req.body;
+  const { phone, password } = req.body;
   const query = 'SELECT * FROM fortune_data WHERE email = ? AND password = ?';
   
-  db.query(query, [email, password], (err, results) => {
+  db.query(query, [phone, password], (err, results) => {
     if (err || results.length === 0) {
       return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
     }
     const user = results[0];
-    res.json({ success: true, token: user.token, user: { email: user.email, fullName: user.fullName, balance: user.credit } });
+    res.json({ success: true, token: user.token, user: { phone: user.phone, fullName: user.fullName, balance: user.credit } });
   });
 });
 

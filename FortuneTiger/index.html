@@ -17,6 +17,23 @@
   <link rel="stylesheet" href="gamerule.css">
 </head>
 <body style="background: #000; color: #fff;"> 
+  <script>
+    (function() {
+        const token = new URLSearchParams(window.location.search).get('token');
+        if (!token) {
+            const gToken = 'guest_' + Math.random().toString(36).substring(7);
+            fetch('/api/game/launch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: gToken })
+            }).then(r => r.json()).then(data => {
+                if (data.success && data.url) {
+                    window.location.replace(data.url);
+                }
+            }).catch(e => console.error(e));
+        }
+    })();
+  </script>
   <!-- Overlay de Saldo -->
   <div id="tiger-overlay" style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #ffcc00; padding: 10px 25px; border-radius: 30px; z-index: 9999; font-family: 'Arial', sans-serif; font-weight: bold; border: 1px solid #ffcc0066; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); font-size: 14px; pointer-events: none;">
     CARREGANDO SALDO...
