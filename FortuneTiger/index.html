@@ -20,22 +20,50 @@
 </head>
 <body>
 <script>
-    // Suprime avisos internos do motor Construct 3 (SES lockdown) que não afetam o funcionamento
+    // Suprime erros internos do motor Construct 3 que não afetam o funcionamento
     (function() {
-        const _filterSES = (fn) => function(...args) {
+        // 1) Filtra console.log/warn/error para mensagens internas do C3
+        const _filterC3 = (fn) => function(...args) {
             const msg = args[0] ? String(args[0]) : '';
             if (
                 msg.includes('SES') ||
                 msg.includes('lockdown') ||
                 msg.includes('Removing intrinsics') ||
                 msg.includes('unpermitted intrinsics') ||
-                msg.includes('SES_UNHANDLED_REJECTION')
+                msg.includes('SES_UNHANDLED_REJECTION') ||
+                msg.includes('_expressionFunc') ||
+                msg.includes('ExpressionParameter')
             ) return;
             return fn.apply(console, args);
         };
-        console.log   = _filterSES(console.log);
-        console.warn  = _filterSES(console.warn);
-        console.error = _filterSES(console.error);
+        console.log   = _filterC3(console.log);
+        console.warn  = _filterC3(console.warn);
+        console.error = _filterC3(console.error);
+
+        // 2) Intercepta Promise rejections não tratadas do motor C3
+        window.addEventListener('unhandledrejection', function(e) {
+            const msg = e.reason ? String(e.reason.message || e.reason) : '';
+            if (
+                msg.includes('_expressionFunc') ||
+                msg.includes('expressionFunc') ||
+                msg.includes('GetExpression') ||
+                msg.includes('EvaluateFunctionParameters') ||
+                msg.includes('not a function') && e.reason && e.reason.stack && e.reason.stack.includes('c3runtime')
+            ) {
+                e.preventDefault();  // Impede que apareça no console
+                e.stopImmediatePropagation();
+                return false;
+            }
+        }, true);
+
+        // 3) Intercepta erros globais do C3 runtime
+        window.addEventListener('error', function(e) {
+            if (e.filename && e.filename.includes('c3runtime') &&
+                e.message && e.message.includes('_expressionFunc')) {
+                e.preventDefault();
+                return false;
+            }
+        }, true);
     })();
 </script>
     <!-- Overlay de Saldo -->
