@@ -160,14 +160,14 @@ function formatSessionData(sessionData) {
 app.get('/api/data/:token/session', (req, res) => {
     const token = req.params.token;
     db.query('SELECT * FROM fortune_data WHERE token = ?', [token], (err, results) => {
-        if (err) return res.status(200).json({ success: false });
+        if (err) return res.status(200).json({ success: false, message: 'DB Error' });
         
         if (!results || results.length === 0) {
             if (token && token.startsWith('guest_')) {
                 const guestName = 'Convidado_' + token.split('_')[1];
                 db.query('INSERT INTO fortune_data (token, fullName, user_name, real_balance, bonus_balance, credit) VALUES (?, ?, ?, ?, ?, ?)', 
                     [token, guestName, guestName, 0, 50.0, 50.0], () => {
-                    res.json({ success: true, data: formatSessionData({ token, credit: 50.0, real_balance: 0, bonus_balance: 50.0, fullName: guestName }) });
+                    res.json({ success: true, message: 'OK', data: formatSessionData({ token, credit: 50.0, real_balance: 0, bonus_balance: 50.0, fullName: guestName }) });
                 });
                 return;
             }
@@ -175,8 +175,12 @@ app.get('/api/data/:token/session', (req, res) => {
         }
         
         const data = formatSessionData(results[0]);
-        console.log(`[DEBUG] Token: ${token} | Saldo: R$ ${data.real_balance + data.bonus_balance}`);
-        res.json({ success: true, data });
+        // Garante que o crédito total esteja no objeto data
+        data.credit = data.real_balance + data.bonus_balance;
+        data.balance = data.credit;
+        
+        console.log(`[DEBUG] Token: ${token} | Saldo: R$ ${data.credit}`);
+        res.json({ success: true, message: 'OK', data });
     });
 });
 
@@ -233,6 +237,7 @@ app.post('/api/data/:token/spin', (req, res) => {
             
             res.json({
                 success: true,
+                message: 'OK',
                 data: {
                     credit: newBalance,
                     balance: newBalance,
