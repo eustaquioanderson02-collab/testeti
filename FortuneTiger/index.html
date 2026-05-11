@@ -159,7 +159,7 @@
                     if (this.responseURL && this.responseURL.includes('/spin') && this.status === 200) {
                         try {
                             const data = JSON.parse(this.responseText);
-                            if (data.success === false) openPremiumModal();
+                            // Modal automático removido a pedido do usuário
                         } catch(e) {}
                     }
                 });

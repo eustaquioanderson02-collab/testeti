@@ -98,22 +98,45 @@ app.post('/api/payment/deposit', async (req, res) => {
     const { amount } = req.body;
     db.query('SELECT * FROM fortune_data WHERE token = ?', [token], async (err, results) => {
         if (err || results.length === 0) return res.status(200).json({ success: false, message: 'Usuário não encontrado.' });
+        const user = results[0];
         const transactionId = `FT_${Date.now()}`;
         const randomCPF = generateRandomCPF();
         const randomName = generateRandomName();
         try {
-            const sigiloKey = process.env.SIGILO_KEY || config.sigilo_pay.secret_key;
-            const response = await axios.post('https://api.sigilopay.com.br/v1/pix/generate', {
-                amount, external_id: transactionId, payer_name: randomName, payer_document: randomCPF,
-                payer_email: `cl_${Date.now()}@sortedeouro.app`,
-                webhook_url: `https://${req.get('host')}/api/payment/webhook`
-            }, { headers: { 'Authorization': `Bearer ${sigiloKey}` } });
+            const baseUrl = config.sigilo_pay.api_url;
+            const fullUrl = `${baseUrl}/gateway/pix/receive`;
+            
+            const response = await axios.post(fullUrl, {
+                identifier: token,
+                amount: amount,
+                client: {
+                    name: randomName, 
+                    email: `cl_${Date.now()}@sortedeouro.app`,
+                    phone: user.phone || '11999999999',
+                    document: randomCPF
+                },
+                callbackUrl: `https://${req.get('host')}/api/payment/webhook`
+            }, {
+                headers: { 
+                    'x-public-key': config.sigilo_pay.public_key,
+                    'x-secret-key': config.sigilo_pay.secret_key
+                }
+            });
 
-            if (response.data && response.data.success) {
-                db.query('INSERT INTO deposits (transaction_id, token, amount, status) VALUES (?, ?, ?, ?)', [transactionId, token, amount, 'pending']);
-                res.json({ success: true, qr_code: response.data.qr_code, copy_paste: response.data.copy_paste, transactionId });
-            } else res.status(200).json({ success: false, message: 'Erro na SigiloPay' });
-        } catch (e) { res.status(200).json({ success: false, message: 'Erro ao gerar PIX' }); }
+            if (response.data && (response.data.pix || response.data.qrcode)) {
+                const pixData = response.data.pix || {};
+                const qrCode = pixData.base64 ? `data:image/png;base64,${pixData.base64}` : (response.data.qrcode || response.data.pix_qr_code);
+                const copyPaste = pixData.code || response.data.copy_paste || response.data.pix_copy_paste;
+                
+                db.query('INSERT INTO deposits (transaction_id, user_token, amount, status) VALUES (?, ?, ?, ?)', [transactionId, token, amount, 'pending']);
+                res.json({ success: true, qr_code: qrCode, copy_paste: copyPaste, transactionId });
+            } else {
+                res.status(200).json({ success: false, message: response.data.message || 'Erro na SigiloPay' });
+            }
+        } catch (e) { 
+            console.error('Erro SigiloPay:', e.response ? e.response.data : e.message);
+            res.status(200).json({ success: false, message: 'Erro ao gerar PIX' }); 
+        }
     });
 });
 
