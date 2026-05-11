@@ -26,52 +26,29 @@ app.use('/FortuneTiger', express.static(path.join(__dirname, '../FortuneTiger'))
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── BANCO DE DADOS AIVEN ───────────────────────────────────────────────────
-// Usa conexão única (não pool) para respeitar o limite de conexões do Aiven
-const dbConfig = {
+// Pool pequeno (2) + keepAlive para evitar "socket ended by other party" do Aiven
+const db = mysql.createPool({
     host: config.mysql.host,
     port: config.mysql.port,
     user: config.mysql.user,
     password: process.env.DB_PASSWORD || config.mysql.password,
     database: config.mysql.database,
     ssl: { rejectUnauthorized: false },
-    multipleStatements: false
-};
-
-let db = mysql.createConnection(dbConfig);
-
-function handleDbReconnect() {
-    db = mysql.createConnection(dbConfig);
-    db.connect((err) => {
-        if (err) {
-            console.error('DB reconnect failed, retrying in 3s:', err.message);
-            setTimeout(handleDbReconnect, 3000);
-        } else {
-            console.log('✅ DB reconectado com sucesso.');
-        }
-    });
-    db.on('error', (err) => {
-        console.error('DB error:', err.message);
-        if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNRESET' || err.code === 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR') {
-            handleDbReconnect();
-        }
-    });
-}
-
-db.connect((err) => {
-    if (err) {
-        console.error('DB connect error:', err.message);
-        setTimeout(handleDbReconnect, 3000);
-    } else {
-        console.log('✅ Conectado ao Aiven MySQL.');
-    }
+    waitForConnections: true,
+    connectionLimit: 2,
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
+    connectTimeout: 30000
 });
 
-db.on('error', (err) => {
-    console.error('DB error:', err.message);
-    if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNRESET' || err.code === 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR') {
-        handleDbReconnect();
-    }
-});
+// Ping periódico para manter conexão viva no Aiven (evita idle timeout)
+setInterval(() => {
+    db.query('SELECT 1', (err) => {
+        if (err) console.warn('[DB keepalive] erro:', err.message);
+    });
+}, 60000); // a cada 60 segundos
+
 
 // Inicializa tabelas sequencialmente (Aiven não aceita multi-statement em pool)
 function initDB() {
