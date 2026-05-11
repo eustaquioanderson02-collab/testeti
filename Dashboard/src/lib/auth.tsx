@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = async (token: string) => {
     try {
-      const res = await fetch("http://localhost:3059/api/user/me", {
+      const res = await fetch("/api/user/me", {
         headers: { Authorization: token },
       });
       const data = await res.json();
@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       login: async (email, password) => {
         try {
-          const res = await fetch("http://localhost:3059/api/auth/login", {
+          const res = await fetch("/api/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password }),
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       register: async (data) => {
         try {
-          const res = await fetch("http://localhost:3059/api/auth/register", {
+          const res = await fetch("/api/auth/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data),
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       deposit: async (amount) => {
         // Implementar via SigiloPay
-        const res = await fetch("http://localhost:3059/api/payment/deposit", {
+        const res = await fetch("/api/payment/deposit", {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       withdraw: async (amount, pixKey, keyType) => {
         try {
-          const res = await fetch("http://localhost:3059/api/payment/withdraw", {
+          const res = await fetch("/api/payment/withdraw", {
             method: "POST",
             headers: { 
               "Content-Type": "application/json",

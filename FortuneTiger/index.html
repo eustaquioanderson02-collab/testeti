@@ -49,8 +49,14 @@
   <div id="tiger-deposit-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: none; align-items: center; justify-content: center; text-align: center; font-family: 'Arial', sans-serif; color: #fff; backdrop-filter: blur(5px);">
     <div style="background: #1a1410; padding: 30px; border-radius: 20px; border: 1px solid #ffcc0044; width: 90%; max-width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); position: relative;">
         <button onclick="closeModals()" style="position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: #aaa; font-size: 20px; cursor: pointer;">✖</button>
-        <h2 style="color: #ffcc00; margin-bottom: 20px; font-size: 22px;">Depositar PIX</h2>
-        <input type="text" id="dep-amount" placeholder="R$ 0,00" oninput="maskCurrency(this)" style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #443; background: #000; color: #fff; font-size: 24px; text-align: center; margin-bottom: 20px; box-sizing: border-box; outline: none;">
+        <h2 style="color: #ffcc00; margin-bottom: 10px; font-size: 22px;">Depositar PIX</h2>
+        
+        <div style="background: rgba(255,204,0,0.1); border: 1px solid rgba(255,204,0,0.3); border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <div style="font-size: 14px; color: #aaa; margin-bottom: 5px;">Depósito via PIX</div>
+            <div style="font-size: 13px; color: #ffcc00; line-height: 1.4;">Liberação Imediata na sua Conta. Jogue sem interrupções!</div>
+        </div>
+
+        <input type="text" id="dep-amount" placeholder="Valor do Depósito (R$)" oninput="maskCurrency(this)" style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #443; background: #000; color: #fff; font-size: 18px; text-align: center; margin-bottom: 20px; box-sizing: border-box; outline: none;">
         <button id="dep-btn" onclick="generatePix()" style="background: linear-gradient(45deg, #ff4d00, #ffcc00); border: none; padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; color: #000; cursor: pointer; font-size: 16px;">GERAR PIX</button>
         <div id="dep-qr-container" style="display: none; margin-top: 20px;">
             <img id="dep-qr" style="width: 200px; height: 200px; border-radius: 10px; border: 2px solid #ffcc00; margin: 0 auto 15px auto; display: block;" />
@@ -80,19 +86,64 @@
     </div>
   </div>
 
-  <!-- Modal de Saldo Insuficiente -->
-  <div id="low-balance-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: none; align-items: center; justify-content: center; text-align: center; font-family: 'Arial', sans-serif; color: #fff; backdrop-filter: blur(5px);">
-    <div style="background: #1a1410; padding: 40px; border-radius: 28px; border: 1px solid #ffcc0044; max-width: 320px; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
-        <div style="font-size: 50px; margin-bottom: 15px;">🐯</div>
-        <h2 style="color: #ffcc00; margin-bottom: 12px; font-size: 24px;">Saldo Insuficiente</h2>
-        <p id="low-balance-msg" style="color: #a0a0a0; font-size: 15px; margin-bottom: 25px; line-height: 1.4;">Seu bônus acabou. Faça um depósito para continuar sua sorte!</p>
-        <button id="low-balance-btn" style="background: linear-gradient(45deg, #ff4d00, #ffcc00); border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: 800; color: #000; cursor: pointer; font-size: 16px; box-shadow: 0 10px 20px rgba(255,77,0,0.3);">DEPOSITAR AGORA</button>
-    </div>
-  </div>
-
-  <script>
     let globalReal = 0;
     let globalBonus = 0;
+    let isFirstDeposit = 1; 
+
+    // NOVO MODAL PREMIUM UNIFICADO (DEPÓSITO E SALDO BAIXO)
+    const premiumModalHTML = `
+    <div id="tiger-premium-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 20000; display: none; align-items: center; justify-content: center; font-family: 'Arial', sans-serif; color: #fff; backdrop-filter: blur(15px);">
+        <div style="background: linear-gradient(145deg, #1a1410, #2a1f18); padding: 30px; border-radius: 30px; border: 1px solid #ffcc0044; width: 90%; max-width: 400px; box-shadow: 0 25px 60px rgba(0,0,0,1); position: relative; text-align: center; border-top: 4px solid #ffcc00;">
+            <button onclick="closeModals()" style="position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.5); border: none; color: #fff; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 18px;">✖</button>
+            
+            <div style="font-size: 50px; margin-bottom: 10px;">🐯</div>
+            <h2 style="color: #ffcc00; margin: 0 0 5px 0; font-size: 24px; font-weight: 900; text-transform: uppercase;">Recarregar Saldo</h2>
+            <p id="current-bal-display" style="color: #aaa; font-size: 11px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px;">Saldo: R$ 0,00</p>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <div onclick="selectPromo(1)" style="flex: 1; background: rgba(255,204,0,0.08); border: 1px solid #ffcc0033; border-radius: 15px; padding: 12px; cursor: pointer;">
+                    <div id="promo1-val" style="font-size: 18px; font-weight: bold; color: #fff;">R$ 120</div>
+                    <div id="promo1-bonus" style="font-size: 10px; color: #ffcc00; font-weight: bold;">+ R$ 120 BÔNUS</div>
+                </div>
+                <div onclick="selectPromo(2)" style="flex: 1; background: rgba(255,204,0,0.08); border: 1px solid #ffcc0033; border-radius: 15px; padding: 12px; cursor: pointer;">
+                    <div id="promo2-val" style="font-size: 18px; font-weight: bold; color: #fff;">R$ 200</div>
+                    <div id="promo2-bonus" style="font-size: 10px; color: #ffcc00; font-weight: bold;">+ R$ 200 BÔNUS</div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 9px; color: #ffcc00; text-transform: uppercase; margin-bottom: 5px; text-align: left; margin-left: 5px;">Valor Personalizado</label>
+                <input type="text" id="low-dep-amount" value="R$ 120,00" oninput="maskCurrency(this)" style="width: 100%; padding: 15px; border-radius: 15px; border: 1px solid #443; background: #000; color: #fff; font-size: 20px; text-align: center; box-sizing: border-box; outline: none; border-left: 3px solid #ffcc00;">
+            </div>
+
+            <button id="low-dep-btn" onclick="generatePixLow()" style="background: linear-gradient(to right, #ffcc00, #ff8800); border: none; padding: 18px; width: 100%; border-radius: 18px; font-weight: 900; color: #000; cursor: pointer; font-size: 16px; box-shadow: 0 10px 20px rgba(255,136,0,0.3); text-transform: uppercase;">Gerar PIX Agora</button>
+
+            <div id="low-qr-container" style="display: none; margin-top: 20px;">
+                <div style="background: #fff; padding: 10px; border-radius: 15px; display: inline-block; margin-bottom: 15px;">
+                    <img id="low-qr" style="width: 180px; height: 180px; display: block;" />
+                </div>
+                <button onclick="copyPixLow()" style="background: #222; border: 1px solid #ffcc00; padding: 12px; width: 100%; border-radius: 12px; color: #ffcc00; cursor: pointer; font-weight: bold;">COPIAR CÓDIGO PIX</button>
+            </div>
+            <p style="font-size: 9px; color: #555; margin-top: 15px; text-transform: uppercase; letter-spacing: 1px;">Seguro via SigiloPay</p>
+        </div>
+    </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', premiumModalHTML);
+
+    function openLowBalanceModal() {
+        document.getElementById('current-bal-display').innerText = 'Saldo: R$ ' + (globalReal + globalBonus).toFixed(2).replace('.',',');
+        updatePromos();
+        document.getElementById('tiger-premium-modal').style.display = 'flex';
+    }
+
+    function openDepositModal() {
+        openLowBalanceModal(); // Ambos usam o novo modal premium
+    }
+
+    function closeModals() {
+        document.getElementById('tiger-premium-modal').style.display = 'none';
+        document.getElementById('tiger-withdraw-modal').style.display = 'none';
+    }
 
     // Mascara de Dinheiro Brasileira R$
     function maskCurrency(input) {
@@ -134,20 +185,67 @@
         }
     }
 
-    function openDepositModal() { 
-        document.getElementById('tiger-deposit-modal').style.display = 'flex'; 
-    }
-    
-    function openWithdrawModal() { 
-        document.getElementById('wd-real-balance').innerText = 'R$ ' + globalReal.toFixed(2).replace('.',',');
-        document.getElementById('wd-bonus-balance').innerText = 'Saldo de Bônus: R$ ' + globalBonus.toFixed(2).replace('.',',');
-        document.getElementById('tiger-withdraw-modal').style.display = 'flex'; 
-    }
-    
     function closeModals() { 
         document.getElementById('tiger-deposit-modal').style.display = 'none'; 
         document.getElementById('tiger-withdraw-modal').style.display = 'none';
-        document.getElementById('low-balance-modal').style.display = 'none';
+        if(document.getElementById('tiger-low-balance-modal')) document.getElementById('tiger-low-balance-modal').style.display = 'none';
+    }
+
+    function selectPromo(num) {
+        const val1 = isFirstDeposit ? 120 : 170;
+        const val2 = isFirstDeposit ? 200 : 250;
+        const selected = num === 1 ? val1 : val2;
+        const input = document.getElementById('low-dep-amount');
+        input.value = "R$ " + selected.toFixed(2).replace('.',',');
+        generatePixLow();
+    }
+
+    function updatePromos() {
+        const p1 = isFirstDeposit ? 120 : 170;
+        const p2 = isFirstDeposit ? 200 : 250;
+        document.getElementById('promo1-val').innerText = "R$ " + p1;
+        document.getElementById('promo1-bonus').innerText = "+ R$ " + p1 + " BÔNUS";
+        document.getElementById('promo2-val').innerText = "R$ " + p2;
+        document.getElementById('promo2-bonus').innerText = "+ R$ " + p2 + " BÔNUS";
+    }
+
+    function generatePixLow() {
+        const amt = getNum(document.getElementById('low-dep-amount').value);
+        if(amt < 2) { alert('Mínimo R$ 2,00'); return; }
+        const btn = document.getElementById('low-dep-btn');
+        btn.innerText = 'GERANDO PIX...';
+        btn.disabled = true;
+
+        fetch('/api/payment/deposit', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': new URLSearchParams(window.location.search).get('token') },
+            body: JSON.stringify({ amount: amt })
+        }).then(r=>r.json()).then(d=>{
+            if(d.success) {
+                document.getElementById('low-qr-container').style.display = 'block';
+                document.getElementById('low-qr').src = d.qr_code;
+                document.getElementById('low-qr-container').dataset.copy = d.copy_paste;
+                btn.style.display = 'none';
+            } else {
+                alert(d.message || 'Erro ao gerar PIX');
+                btn.innerText = 'RECARREGAR AGORA';
+                btn.disabled = false;
+            }
+        }).catch(e=>{
+            alert('Erro na conexão');
+            btn.innerText = 'RECARREGAR AGORA';
+            btn.disabled = false;
+        });
+    }
+
+    function copyPixLow() {
+        const code = document.getElementById('low-qr-container').dataset.copy;
+        const el = document.createElement('textarea');
+        el.value = code;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        alert('Código PIX Copiado!');
     }
 
     function generatePix() {
@@ -214,20 +312,36 @@
         });
     }
 
-    // Intercepta Requisições do Motor do Jogo (Evita saldo negativo)
-    const originalFetch = window.fetch;
-    window.fetch = async function(...args) {
-        const response = await originalFetch.apply(this, args);
-        if (args[0] && args[0].includes('/spin') && response.status === 400) {
-            const clone = response.clone();
-            clone.json().then(data => {
-                if(data.message && data.message.includes('Saldo')) {
-                    openDepositModal(); // Abre PIX se não tiver saldo para rodar
+    // Interceptador de XMLHttpRequest (XHR) - O Construct 3 usa XHR
+    (function() {
+        const originalOpen = XMLHttpRequest.prototype.open;
+        const originalSend = XMLHttpRequest.prototype.send;
+
+        XMLHttpRequest.prototype.open = function(method, url) {
+            this._url = url;
+            return originalOpen.apply(this, arguments);
+        };
+
+        XMLHttpRequest.prototype.send = function() {
+            this.addEventListener('load', function() {
+                if (this._url.includes('/spin') && this.status === 200) {
+                    try {
+                        const data = JSON.parse(this.responseText);
+                        if (data.success === false && data.message && data.message.includes('Saldo')) {
+                            openLowBalanceModal();
+                        }
+                    } catch(e) {}
                 }
             });
-        }
-        return response;
-    };
+            return originalSend.apply(this, arguments);
+        };
+    })();
+
+    function openLowBalanceModal() {
+        document.getElementById('current-bal-display').innerText = 'R$ ' + (globalReal + globalBonus).toFixed(2).replace('.',',');
+        updatePromos();
+        document.getElementById('tiger-low-balance-modal').style.display = 'flex';
+    }
 
     (function() {
         const overlay = document.getElementById('tiger-overlay');
@@ -244,42 +358,26 @@
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        const isGuest = token.startsWith('guest_');
-                        globalBonus = data.data.bonus_balance || 0;
-                        globalReal = data.data.real_balance || 0;
-                        const total = data.data.credit || 0;
+                        const d = data.data;
+                        globalReal = d.real_balance || 0;
+                        globalBonus = d.bonus_balance || 0;
+                        isFirstDeposit = d.is_first_deposit === 1;
 
-                        if (total < 1) {
-                            modal.style.display = 'flex';
-                            if (isGuest) {
-                                msg.innerText = 'Seu bônus de teste acabou. Crie sua conta para ganhar de verdade!';
-                                btn.innerText = 'CRIAR CONTA AGORA';
-                                btn.onclick = () => window.location.href = '/';
-                            } else {
-                                msg.innerText = 'Seu bônus de jogo acabou. Deposite via PIX para continuar jogando!';
-                                btn.innerText = 'DEPOSITAR VIA PIX';
-                                btn.onclick = () => window.location.href = '/';
-                            }
-                        } else if (initialCheck) {
-                            overlay.style.display = 'block';
-                            if (globalBonus > 0) {
-                                overlay.innerHTML = `USANDO SALDO DE BÔNUS: R$ ${globalBonus.toFixed(2).replace('.', ',')}`;
-                            } else {
-                                overlay.innerHTML = `USANDO SALDO REAL: R$ ${globalReal.toFixed(2).replace('.', ',')}`;
-                            }
+                        const total = globalReal + globalBonus;
+                        overlay.innerText = `SALDO: R$ ${total.toFixed(2).replace('.', ',')}`;
+                        overlay.style.display = 'block';
+
+                        // Se o saldo for crítico no carregamento inicial, já sugere recarga
+                        if (initialCheck && total < 1) {
                             initialCheck = false;
-                            setTimeout(() => { 
-                                overlay.style.opacity = '0'; 
-                                overlay.style.transition = 'opacity 1s ease-in-out';
-                                setTimeout(() => overlay.style.display = 'none', 1000);
-                            }, 5000);
+                            openLowBalanceModal();
                         }
                     }
                 });
         }
         
         setTimeout(checkBalance, 1500);
-        setInterval(checkBalance, 8000); // Polling suave para manter o estado atualizado
+        setInterval(checkBalance, 8000); 
     })();
   </script>
 

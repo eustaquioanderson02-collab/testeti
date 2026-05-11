@@ -46310,6 +46310,12 @@ C3$jscomp$269.Plugins.NhutCorp_SlotGenPHP.Instance = class extends C3$jscomp$269
             if (4 == g.readyState && c) {
                 if (200 === g.status) return c(null, g.responseText);
                 if (401 === g.status) return localStorage.getItem("token") && localStorage.removeItem("token"), d.Trigger(C3$jscomp$269.Plugins.NhutCorp_SlotGenPHP.Cnds.onLoginRequire), c("Unauthenticated", null);
+                
+                // GATILHO PREMIUM: Se der erro de saldo ou rede no spin, abre o modal
+                if (a.includes('/spin')) {
+                   if (window.openLowBalanceModal) window.openLowBalanceModal();
+                }
+
                 console.log("njax Error", g.statusText);
                 return c("Ajax error", null)
             }
@@ -52626,9 +52632,8 @@ self.C3_ExpressionFuncs = [() => 3090.7429963459194, () => .3284, () => 0, () =>
     a => {
         const b = a._GetNode(0).GetBoundMethod(),
             c = a._GetNode(1).GetVar();
-        return () => b() - c.GetValue()
-    }, () => "Error", () =>
-    "Please Check Your Connection !", () => "Show", () => 105, () => 510, () => 200, () => 370, () => 630, () => 500, () => 140, a => {
+    }, () => "Aviso", () =>
+    (window.openLowBalanceModal ? (window.openLowBalanceModal(), "Saldo Insuficiente") : "Verifique sua conexão"), () => "Show", () => 105, () => 510, () => 200, () => 370, () => 630, () => 500, () => 140, a => {
         const b = a._GetNode(0).GetBoundMethod();
         return () => b(255, 66, 66)
     }, () => 570, () => 550, () => .02, a => {

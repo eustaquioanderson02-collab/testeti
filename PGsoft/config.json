@@ -5,7 +5,7 @@
         "api_url": "https://app.sigilopay.com.br/api/v1",
         "public_key": "eustaquioanderson02_sqycq76wo25myug8",
         "secret_key": "yoeva5owczt2se71l03uvnrdfcmhzbsm59h855e4ac3lcren5d7u0cwopsdntmrc",
-        "webhook_domain": "http://199.245.56.196:3059"
+        "webhook_domain": ""
     },
     "useMysql": true,
     "mysql": {

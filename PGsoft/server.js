@@ -19,7 +19,7 @@ app.use(
 
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
-app.use(bodyParser.text({ type: '*/*', limit: '10mb' })); // Captura corpos sem Content-Type ou com tipo desconhecido
+app.use(bodyParser.text({ limit: '10mb' })); // Removido o */* para não capturar tudo agressivamente
 
 // Servir o Jogo e a Dashboard Standalone
 app.use('/FortuneTiger', express.static(path.join(__dirname, '../FortuneTiger')));
@@ -116,13 +116,19 @@ if (useMysql) {
         qr_code TEXT,
         copy_paste TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        expires_at DATETIME
+        expires_at DATETIME,
+        webhook_token VARCHAR(255)
       );
     `;
 
     db.query(initQueries, (err) => {
       if (err) console.error("Erro ao criar tabelas MySQL:", err);
       else {
+        // Garante que a coluna webhook_token exista (tratamento silencioso para MySQL 8)
+        db.query("ALTER TABLE deposits ADD COLUMN webhook_token VARCHAR(255)", (err) => {
+            // Ignora erro de coluna duplicada
+        });
+
         db.query("SELECT count(*) as count FROM fortune_data", (err, results) => {
           if (!err && results[0] && results[0].count === 0) {
             db.query(`INSERT INTO fortune_data (user_name, credit, num_line, line_num, bet_amount, free_num, free_total, free_amount, free_multi, freespin_mode, credit_line, buy_feature, buy_max, total_way, multipy, token, freemode, jackpot, free_spin, losses) 
@@ -355,225 +361,177 @@ app.get('/api/data/:token/session', (req, res) => {
 });
 
 app.post('/api/data/:token/spin', (req, res) => {
-  const token = req.params.token;
+  try {
+    const token = req.params.token;
 
-  // ==========================================
-  // CONFIGURAÇÕES DE GANHOS (WIN) - EDITE AQUI
-  // ==========================================
-  const CHANCE_DE_GANHO = 0.25; // 0.25 significa 25% de chance de ganhar a cada giro
-  
-  // Se houver ganho, os multiplicadores abaixo determinam o prêmio (Prêmio = Aposta * Multiplicador)
-  const MULTIPLICADOR_PEQUENO_MIN = 0.5; // Ganho mínimo (0.5x a aposta)
-  const MULTIPLICADOR_PEQUENO_MAX = 2.5; // Ganho máximo pequeno (2.5x a aposta)
-  
-  const MULTIPLICADOR_GRANDE_MIN = 3.0;  // Ganho médio/grande mínimo (3x a aposta)
-  const MULTIPLICADOR_GRANDE_MAX = 10.0; // Ganho médio/grande máximo (10x a aposta)
-  // ==========================================
-  
-  // Captura o valor da aposta real do jogo
-  let betAmount = req.body.betamount || req.body.betAmount || req.body.bet_amount || req.body.amount || req.body.b || req.query.betamount || req.query.betAmount || req.query.bet_amount || req.query.amount || req.query.b;
-  let cs = req.body.cs || req.query.cs;
-  let ml = req.body.ml || req.query.ml;
-  
-  // Tenta pescar da raw string caso o express tenha feito parsing errado ou se for raw text
-  if (!cs || !ml) {
-      let raw = '';
-      if (typeof req.body === 'string') {
-          raw = req.body;
-      } else {
-          raw = Object.keys(req.body).join('&');
-      }
-      raw += '&' + req.url;
-      
-      const matchCs = raw.match(/cs=([\d\.\,]+)/i);
-      const matchMl = raw.match(/ml=([\d\.\,]+)/i);
-      const matchB = raw.match(/b=([\d\.\,]+)/i);
-      const matchBet = raw.match(/betamount=([\d\.\,]+)/i);
-      const matchCpl = raw.match(/cpl=([\d\.\,]+)/i);
-      const matchNumline = raw.match(/numline=([\d\.\,]+)/i);
-      
-      if (matchCs) cs = matchCs[1];
-      if (matchMl) ml = matchMl[1];
-      
-      // Prioridade 1: Tenta pegar 'b' ou 'betamount' (Aposta Total ou Bet Size)
-      let extractedAmount = null;
-      if (matchB) extractedAmount = parseFloat(matchB[1]);
-      else if (matchBet) extractedAmount = parseFloat(matchBet[1]);
-      else if (req.body.betamount) extractedAmount = parseFloat(req.body.betamount);
+    // ==========================================
+    // CONFIGURAÇÕES DE GANHOS (WIN) - EDITE AQUI
+    // ==========================================
+    const CHANCE_DE_GANHO = 0.25; // 25% de chance
+    const MULTIPLICADOR_PEQUENO_MIN = 1.2;
+    const MULTIPLICADOR_PEQUENO_MAX = 5.0;
+    const MULTIPLICADOR_GRANDE_MIN = 10.0;
+    const MULTIPLICADOR_GRANDE_MAX = 50.0;
 
-      // Parâmetros multiplicadores
-      let cpl = matchCpl ? parseInt(matchCpl[1]) : (req.body.cpl ? parseInt(req.body.cpl) : 1);
-      let numline = matchNumline ? parseInt(matchNumline[1]) : (req.body.numline ? parseInt(req.body.numline) : 5);
+    let betAmount = 0;
+    let cs = req.query.cs || req.body.cs;
+    let ml = req.query.ml || req.body.ml;
 
-      if (extractedAmount !== null) {
-          // Se o valor extraído for pequeno (provavelmente Bet Size) e tivermos multiplicadores
-          // Ou se o motor do jogo sempre manda Bet Size em 'betamount'
-          if (extractedAmount < 50 && cpl > 0) { 
-              betAmount = extractedAmount * cpl * numline;
-          } else {
-              betAmount = extractedAmount;
-          }
-      }
-  }
-
-  // Se nada funcionou mas temos CS e ML (estilo antigo)
-  if (!betAmount && cs && ml) {
-      betAmount = parseFloat(cs.toString().replace(',', '.')) * parseInt(ml) * 5;
-  }
-  
-  if (!betAmount || isNaN(betAmount) || betAmount <= 0) {
-      betAmount = 2.00; // Fallback de segurança
-  }
-
-  if (cs) cs = cs.toString().replace(',', '.');
-  if (ml) ml = ml.toString().replace(',', '.');
-
-  if (!betAmount && cs && ml) {
-      // Cálculo padrão de apostas PG Soft (Bet Size * Bet Level * Base Bet (5))
-      betAmount = parseFloat(cs) * parseInt(ml) * 5;
-  }
-  
-  if (!betAmount || isNaN(betAmount) || betAmount <= 0) {
-      betAmount = 2; // valor seguro de fallback
-  }
-
-  const rtp = config.rtp;
-
-  const query = 'SELECT real_balance, bonus_balance, credit, freemode, jackpot, free_spin, free_num, scaler, num_line FROM fortune_data WHERE token = ?';
-
-  db.query(query, [token], (err, results) => {
-    if (err) {
-      console.error('Erro ao buscar spin:', err);
-      const errorResponse = new ErrorResponse('Erro ao buscar spin.');
-      return res.status(500).json(errorResponse);
+    // Extração robusta de dados brutos do motor do jogo
+    let raw = '';
+    if (typeof req.body === 'string') {
+        raw = req.body;
+    } else if (req.body && typeof req.body === 'object') {
+        raw = Object.keys(req.body).join('&');
     }
-
-    if (results.length === 0) {
-      const errorResponse = new ErrorResponse('Spins não encontrados.');
-      return res.status(404).json(errorResponse);
-    }
-
-    const fortuneData = results[0];
-    const totalBalance = fortuneData.real_balance + fortuneData.bonus_balance;
-
-    if (totalBalance < betAmount) {
-      const errorResponse = new ErrorResponse('Saldo insuficiente para a aposta.');
-      return res.status(400).json(errorResponse);
-    }
-
-    // Lógica de dedução: Bônus primeiro
-    let newReal = fortuneData.real_balance;
-    let newBonus = fortuneData.bonus_balance;
-    let betFromBonus = 0;
-    let isBonusPlay = false;
-
-    if (newBonus >= betAmount) {
-        newBonus -= betAmount;
-        betFromBonus = betAmount;
-        isBonusPlay = true;
-    } else {
-        betFromBonus = newBonus;
-        const remaining = betAmount - newBonus;
-        newBonus = 0;
-        newReal -= remaining;
-        isBonusPlay = (betFromBonus > 0);
-    }
-
-    // Gere o "feature symbol" aleatoriamente
-    const featureSymbol = 'Symbol_' + getRandomNumber(1, 9);
-    db.query('UPDATE icon_data SET feature_symbol = ? WHERE token = ?', [featureSymbol, token]);
-
-    // Bonus play: Increase win frequency (e.g., 40% vs 25%)
-    const winChance = isBonusPlay ? 0.40 : CHANCE_DE_GANHO;
-    const isWin = Math.random() < winChance;
-    let winAmount = 0;
+    raw += '&' + req.url;
     
-    if (isWin) {
-        let mult = 0;
-        if (Math.random() < 0.90) {
-            mult = getRandomNumber(MULTIPLICADOR_PEQUENO_MIN * 10, MULTIPLICADOR_PEQUENO_MAX * 10) / 10;
+    const matchCs = raw.match(/cs=([\d\.\,]+)/i);
+    const matchMl = raw.match(/ml=([\d\.\,]+)/i);
+    const matchB = raw.match(/b=([\d\.\,]+)/i);
+    const matchBet = raw.match(/betamount=([\d\.\,]+)/i);
+    const matchCpl = raw.match(/cpl=([\d\.\,]+)/i);
+    const matchNumline = raw.match(/numline=([\d\.\,]+)/i);
+    
+    if (matchCs) cs = matchCs[1];
+    if (matchMl) ml = matchMl[1];
+    
+    let extractedAmount = null;
+    if (matchB) extractedAmount = parseFloat(matchB[1]);
+    else if (matchBet) extractedAmount = parseFloat(matchBet[1]);
+    else if (req.body && req.body.betamount) extractedAmount = parseFloat(req.body.betamount);
+
+    let cpl = matchCpl ? parseInt(matchCpl[1]) : (req.body && req.body.cpl ? parseInt(req.body.cpl) : 1);
+    let numline = matchNumline ? parseInt(matchNumline[1]) : (req.body && req.body.numline ? parseInt(req.body.numline) : 5);
+
+    if (extractedAmount !== null) {
+        if (extractedAmount < 50 && cpl > 0) { 
+            betAmount = extractedAmount * cpl * numline;
         } else {
-            mult = getRandomNumber(MULTIPLICADOR_GRANDE_MIN * 10, MULTIPLICADOR_GRANDE_MAX * 10) / 10;
+            betAmount = extractedAmount;
         }
-        
-        // Bonus play: Reduce win amount by 60%
-        if (isBonusPlay) {
-            mult *= 0.4;
-        }
-        
-        winAmount = parseFloat((betAmount * mult).toFixed(2));
     }
 
-    let syms = [];
-    for(let i=0; i<9; i++) syms.push('Symbol_' + getRandomNumber(1, 8));
+    if (!betAmount && cs && ml) {
+        betAmount = parseFloat(cs.toString().replace(',', '.')) * parseInt(ml) * 5;
+    }
     
-    if (winAmount > 0) {
-        let winSym = 'Symbol_' + getRandomNumber(1, 7);
-        syms[3] = winSym; syms[4] = winSym; syms[5] = winSym;
-        
-        newReal += winAmount;
+    if (!betAmount || isNaN(betAmount) || betAmount <= 0) {
+        betAmount = 2.00;
     }
 
-    const finalCredit = newReal + newBonus;
-    const updateQuery = 'UPDATE fortune_data SET real_balance = ?, bonus_balance = ?, credit = ?, bet_amount = ? WHERE token = ?';
+    const rtp = config.rtp;
+    const query = 'SELECT * FROM fortune_data WHERE token = ?';
 
-    db.query(updateQuery, [newReal, newBonus, finalCredit, betAmount, token], (updateErr) => {
-      if (updateErr) console.error('Erro ao atualizar saldo:', updateErr);
+    db.query(query, [token], (err, results) => {
+      if (err) {
+        console.error('Erro ao buscar spin:', err);
+        return res.status(200).json({ success: false, message: 'Erro no Banco: ' + err.message });
+      }
+
+      if (!results || results.length === 0) {
+        return res.status(200).json({ success: false, message: 'Sessão expirada. Recarregue.' });
+      }
+
+      const fortuneData = results[0];
+      const totalBalance = fortuneData.real_balance + fortuneData.bonus_balance;
+
+      if (totalBalance < betAmount) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ 
+            success: false, 
+            message: 'Saldo insuficiente para a aposta.',
+            version: '3.0.5',
+            data: { credit: totalBalance } 
+        }));
+      }
+
+      // Lógica de dedução e vitória...
+      let newReal = fortuneData.real_balance;
+      let newBonus = fortuneData.bonus_balance;
+      let betFromBonus = 0;
+      let isBonusPlay = false;
+
+      if (newBonus >= betAmount) {
+          newBonus -= betAmount;
+          betFromBonus = betAmount;
+          isBonusPlay = true;
+      } else {
+          betFromBonus = newBonus;
+          const remaining = betAmount - newBonus;
+          newBonus = 0;
+          newReal -= remaining;
+          isBonusPlay = (betFromBonus > 0);
+      }
+
+      const featureSymbol = 'Symbol_' + getRandomNumber(1, 9);
+      db.query('UPDATE icon_data SET feature_symbol = ? WHERE token = ?', [featureSymbol, token]);
+
+      const winChance = isBonusPlay ? 0.40 : CHANCE_DE_GANHO;
+      const isWin = Math.random() < winChance;
+      let winAmount = 0;
+      
+      if (isWin) {
+          let mult = 0;
+          if (Math.random() < 0.90) mult = getRandomNumber(12, 50) / 10;
+          else mult = getRandomNumber(100, 500) / 10;
+          if (isBonusPlay) mult *= 0.4;
+          winAmount = parseFloat((betAmount * mult).toFixed(2));
+      }
+
+      let syms = [];
+      for(let i=0; i<9; i++) syms.push('Symbol_' + getRandomNumber(1, 8));
+      
+      if (winAmount > 0) {
+          let winSym = 'Symbol_' + getRandomNumber(1, 7);
+          syms[3] = winSym; syms[4] = winSym; syms[5] = winSym;
+          newReal += winAmount;
+      }
+
+      const finalCredit = newReal + newBonus;
+      db.query('UPDATE fortune_data SET real_balance = ?, bonus_balance = ?, credit = ?, bet_amount = ? WHERE token = ?', 
+        [newReal, newBonus, finalCredit, betAmount, token]);
+
+      res.json(new SuccessResponse({
+        credit: finalCredit,
+        freemode: fortuneData.freemode,
+        jackpot: 0,
+        free_spin: 0,
+        free_num: 0,
+        scaler: 0,
+        num_line: 5,
+        bet_amount: betAmount,
+        feature_symbol: null,
+        pull: {
+          WinAmount: winAmount,
+          WinOnDrop: winAmount,
+          TotalWay: winAmount > 0 ? 5 : 0,
+          FreeSpin: 0,
+          HasNewSpawn: false,
+          HasPlaceHolder: false,
+          LastMultiply: 0,
+          WildFixedIcons: [],
+          HasJackpot: false,
+          HasScatter: false,
+          CountScatter: 0,
+          WildColumIcon: "",
+          MultipyScatter: 0,
+          MultiplyCount: 0,
+          SlotIcons: syms,
+          ActiveIcons: winAmount > 0 ? [4, 5, 6] : [],
+          ActiveLines: winAmount > 0 ? [{ index: 1, active_icon: [4, 5, 6] }] : [],
+          WinLogs: [],
+          DropLine: 0,
+          DropLineData: [],
+          MultipleList: [],
+          FeatureResult: null
+        }
+      }));
     });
-
-    if (isWin) {
-      // Registra o ganho no histórico com detalhes da aposta
-      const insertWinQuery = 'INSERT INTO wins (token, win_amount, amount, bet_size, bet_level) VALUES (?, ?, ?, ?, ?)';
-      db.query(insertWinQuery, [token, winAmount, betAmount, req.body.bet_size || 1, req.body.bet_amount || 1], (winErr) => {
-        if (winErr) console.error('Erro ao inserir ganho:', winErr);
-      });
-    } else {
-      // Registra a perda no histórico com detalhes da aposta
-      const insertLossQuery = 'INSERT INTO losses (token, bet_amount, bet_size, bet_level) VALUES (?, ?, ?, ?)';
-      db.query(insertLossQuery, [token, betAmount, req.body.bet_size || 1, req.body.bet_amount || 1], (lossErr) => {
-        if (lossErr) console.error('Erro ao inserir perda:', lossErr);
-      });
-    }
-
-    // Gere as informações para a resposta com base em um spin limpo (sem acionar features que travam a tela)
-    const spinResponse = new SuccessResponse({
-      credit: finalCredit,
-      freemode: fortuneData.freemode,
-      jackpot: 0,
-      free_spin: 0,
-      free_num: 0,
-      scaler: 0,
-      num_line: 5,
-      bet_amount: betAmount,
-      feature_symbol: null,
-      pull: {
-        WinAmount: winAmount,
-        WinOnDrop: winAmount,
-        TotalWay: winAmount > 0 ? 5 : 0,
-        FreeSpin: 0,
-        HasNewSpawn: false,
-        HasPlaceHolder: false,
-        LastMultiply: 0,
-        WildFixedIcons: [],
-        HasJackpot: false,
-        HasScatter: false,
-        CountScatter: 0,
-        WildColumIcon: "",
-        MultipyScatter: 0,
-        MultiplyCount: 0,
-        SlotIcons: syms,
-        ActiveIcons: winAmount > 0 ? [4, 5, 6] : [],
-        ActiveLines: winAmount > 0 ? [{ index: 1, active_icon: [4, 5, 6] }] : [],
-        WinLogs: winAmount > 0 ? ['[BET] betLevel: ' + betAmount + ' => ' + winAmount] : [],
-        DropLine: 0,
-        DropLineData: [],
-        MultipleList: [],
-        FeatureResult: null
-      },
-    }, 'Spin success');
-
-      res.json(spinResponse);
-    });
+  } catch (e) {
+    console.error('CRITICAL SPIN ERROR:', e);
+    res.status(200).json({ success: false, message: 'Erro interno. Tente novamente.' });
+  }
 });
 
 app.post('/api/data/:token/histories', (req, res) => {
