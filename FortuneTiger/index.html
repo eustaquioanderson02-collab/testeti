@@ -65,17 +65,29 @@
         </div>
     </div>
 
-    <!-- Modal de Saque -->
+    <!-- Modal de Saque PREMIUM -->
     <div id="withdraw-modal" class="gold-modal">
-        <div class="gold-content" style="border-top-color: #00ffcc;">
+        <div class="gold-content" style="border-top-color: #00ffcc; background: linear-gradient(145deg, #0d1a1a, #162626);">
             <button class="close-btn" onclick="closeAll()">✕</button>
-            <h2 style="color: #00ffcc; margin: 0 0 10px 0; font-size: 24px; font-weight: 900; text-transform: uppercase;">Solicitar Saque</h2>
-            <div style="background: rgba(0,255,204,0.1); border-radius: 20px; padding: 20px; margin-bottom: 25px;">
-                <p id="wd-bal" style="font-size: 32px; color: #00ffcc; font-weight: 900; margin: 0;">R$ 0,00</p>
+            <div style="font-size: 60px; margin-bottom: 10px;">💸</div>
+            <h2 style="color: #00ffcc; margin: 0; font-size: 26px; font-weight: 900; text-transform: uppercase; letter-spacing: -1px;">Solicitar Saque</h2>
+            <p style="color: #4d8888; font-size: 11px; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px;">Retirada Instantânea via PIX</p>
+            
+            <div style="background: rgba(0,255,204,0.05); border: 1px solid rgba(0,255,204,0.2); border-radius: 25px; padding: 20px; margin-bottom: 25px;">
+                <p style="color: #888; font-size: 12px; margin-bottom: 5px;">Disponível para saque</p>
+                <p id="wd-bal" style="font-size: 36px; color: #00ffcc; font-weight: 900; margin: 0;">R$ 0,00</p>
             </div>
-            <input type="text" id="wd-val" placeholder="Valor (R$)" oninput="mask(this)" style="width: 100%; padding: 15px; border-radius: 15px; border: 1px solid #332; background: #000; color: #fff; font-size: 20px; text-align: center; margin-bottom: 15px; outline: none;">
-            <input type="text" id="wd-key" placeholder="Chave PIX" style="width: 100%; padding: 15px; border-radius: 15px; border: 1px solid #332; background: #000; color: #fff; font-size: 16px; text-align: center; margin-bottom: 20px; outline: none;">
-            <button onclick="doWd()" style="background: #00ffcc; border: none; padding: 18px; width: 100%; border-radius: 20px; font-weight: 900; color: #000; cursor: pointer; text-transform: uppercase;">Confirmar Saque</button>
+            
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="wd-val" placeholder="Valor R$ 0,00" oninput="mask(this)" style="width: 100%; padding: 18px; border-radius: 20px; border: 2px solid #1a3333; background: #000; color: #fff; font-size: 24px; font-weight: 900; text-align: center; outline: none; border-left: 5px solid #00ffcc;">
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <input type="text" id="wd-key" placeholder="Sua Chave PIX (CPF/Email/Tel)" style="width: 100%; padding: 18px; border-radius: 20px; border: 2px solid #1a3333; background: #000; color: #fff; font-size: 16px; text-align: center; outline: none;">
+            </div>
+            
+            <button onclick="doWd()" style="background: linear-gradient(to right, #00ffcc, #0088aa); border: none; padding: 22px; width: 100%; border-radius: 25px; font-weight: 900; color: #000; cursor: pointer; font-size: 18px; text-transform: uppercase; box-shadow: 0 15px 35px rgba(0,255,204,0.2);">Confirmar Saque</button>
+            <p style="font-size: 10px; color: #2a4444; margin-top: 20px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold;">Processamento Prioritário</p>
         </div>
     </div>
 
@@ -88,6 +100,7 @@
             document.getElementById('qr-area').style.display = 'none';
             document.getElementById('btn-gen').style.display = 'block';
         }
+        window.openDepositModal = openPremiumModal; // Alias para evitar erro de referência
 
         function openWithdraw() {
             document.getElementById('withdraw-modal').style.display = 'flex';
@@ -199,8 +212,8 @@
                 fetch(`/api/data/${token}/session`).then(r => r.json()).then(data => {
                     if (data.success) {
                         const d = data.data;
-                        gReal = d.real_balance || 0;
-                        gBonus = d.bonus_balance || 0;
+                        gReal = parseFloat(d.real_balance || 0);
+                        gBonus = parseFloat(d.bonus_balance || 0);
                         const total = gReal + gBonus;
                         const ov = document.getElementById('tiger-overlay');
                         if(ov) {
@@ -209,10 +222,10 @@
                         }
                         initial = false;
                     }
-                });
+                }).catch(() => {});
             }
-            setTimeout(check, 1000);
-            setInterval(check, 10000);
+            setTimeout(check, 500);
+            setInterval(check, 3000); // Polling acelerado (3s)
         })();
     </script>
 

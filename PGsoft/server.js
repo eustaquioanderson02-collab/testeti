@@ -123,6 +123,15 @@ app.get('/api/user/me', (req, res) => {
     });
 });
 
+// ROTA DE DADOS DO JOGO (ESSENCIAL PARA O OVERLAY)
+app.get('/api/data/:token/session', (req, res) => {
+    const token = req.params.token;
+    db.query('SELECT * FROM fortune_data WHERE token = ?', [token], (err, results) => {
+        if (err || results.length === 0) return res.status(200).json({ success: false });
+        res.json({ success: true, data: results[0] });
+    });
+});
+
 // MOTOR DO JOGO
 app.post('/api/game/launch', (req, res) => {
     const { token } = req.body;
