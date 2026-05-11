@@ -31,6 +31,7 @@ app.get('/', (req, res) => {
 
 
 let db;
+let sqliteDb;
 const useMysql = config.useMysql === true;
 
 if (useMysql) {
@@ -145,7 +146,7 @@ if (useMysql) {
     fs.mkdirSync(baseDir, { recursive: true });
   }
   const dbPath = path.join(baseDir, 'database.sqlite');
-  const sqliteDb = new sqlite3.Database(dbPath, (err) => {
+  sqliteDb = new sqlite3.Database(dbPath, (err) => {
     if (err) {
       console.error('Erro ao conectar ao banco de dados SQLite:', err);
       throw err;

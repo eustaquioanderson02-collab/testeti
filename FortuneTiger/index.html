@@ -180,10 +180,6 @@
                             ov.innerText = `SALDO: R$ ${total.toFixed(2).replace('.', ',')}`;
                             ov.style.display = 'block';
                         }
-                        if (initial && total < 5.00) {
-                            initial = false;
-                            openPremiumModal();
-                        }
                         initial = false;
                     }
                 });
