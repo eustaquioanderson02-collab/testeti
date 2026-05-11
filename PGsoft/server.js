@@ -66,6 +66,14 @@ db.query(`
         db.query("ALTER TABLE deposits ADD COLUMN user_token VARCHAR(255)", () => {});
         db.query("ALTER TABLE deposits ADD COLUMN transaction_id VARCHAR(255)", () => {});
     });
+
+    db.query(`
+      CREATE TABLE IF NOT EXISTS webhook_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        payload TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `, () => {});
 });
 
 // GERADORES DE DADOS PARA PAGAMENTO
@@ -178,13 +186,16 @@ app.post('/api/payment/deposit', async (req, res) => {
 
 app.post('/api/payment/webhook', (req, res) => {
     const payload = req.body;
+    
+    // LOG DO WEBHOOK NO BANCO
+    db.query('INSERT INTO webhook_logs (payload) VALUES (?)', [JSON.stringify(payload)]);
     console.log('Webhook SigiloPay:', JSON.stringify(payload));
 
     const transaction = payload.transaction || {};
     const sigiloId = transaction.id;
     const externalId = transaction.external_id;
     const status = transaction.status;
-    const userToken = payload.identifier;
+    const userToken = transaction.identifier || payload.identifier; // Ajustado para ler de transaction.identifier
 
     if (payload.event === 'TRANSACTION_PAID' || status === 'COMPLETED' || status === 'PAID') {
         db.query('SELECT * FROM deposits WHERE (transaction_id = ? OR transaction_id = ?) AND status = "pending"', [externalId, sigiloId], (err, results) => {
@@ -212,6 +223,7 @@ app.post('/api/payment/webhook', (req, res) => {
     }
     res.status(200).send('OK');
 });
+
 
 app.get('/api/payment/pending-deposits', (req, res) => {
     const token = req.headers.authorization;
