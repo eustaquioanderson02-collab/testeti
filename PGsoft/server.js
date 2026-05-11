@@ -56,9 +56,10 @@ if (useMysql) {
     console.log('Conexão com o banco de dados MySQL estabelecida.');
   });
 } else {
-  const baseDir = path.join(__dirname, 'base');
+  const isVercel = process.env.VERCEL === '1';
+  const baseDir = isVercel ? '/tmp/base' : path.join(__dirname, 'base');
   if (!fs.existsSync(baseDir)) {
-    fs.mkdirSync(baseDir);
+    fs.mkdirSync(baseDir, { recursive: true });
   }
   const dbPath = path.join(baseDir, 'database.sqlite');
   const sqliteDb = new sqlite3.Database(dbPath, (err) => {
@@ -911,6 +912,10 @@ app.get('/api/data/:token/icons', (req, res) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`API está rodando em http://localhost:${port}`);
-});
+if (require.main === module) {
+  app.listen(port, () => {
+    console.log(`API está rodando em http://localhost:${port}`);
+  });
+}
+
+module.exports = app;
