@@ -126,9 +126,36 @@
                     document.getElementById('qr-img').src = d.qr_code;
                     document.getElementById('qr-area').dataset.copy = d.copy_paste;
                     btn.style.display = 'none';
+                    startPolling(d.transactionId);
                 } else alert(d.message || 'Erro');
                 btn.innerText = 'Gerar PIX Agora'; btn.disabled = false;
             }).catch(() => { btn.innerText = 'Gerar PIX Agora'; btn.disabled = false; });
+        }
+
+        let pollInt;
+        function startPolling(id) {
+            if(pollInt) clearInterval(pollInt);
+            pollInt = setInterval(() => {
+                fetch('/api/payment/check-status/' + id).then(r=>r.json()).then(d=>{
+                    if(d.success && d.status === 'PAID') {
+                        clearInterval(pollInt);
+                        const modal = document.getElementById('premium-gold-modal');
+                        if(modal.style.display === 'flex') {
+                            const btnArea = document.getElementById('qr-area');
+                            btnArea.innerHTML = '<h3 style="color:#00ffcc; font-size:20px; font-weight:900; margin:20px 0;">✅ DEPÓSITO REALIZADO</h3><p style="color:#888; font-size:12px;">Seu saldo foi atualizado!</p>';
+                        } else {
+                            showToast();
+                        }
+                    }
+                });
+            }, 3000);
+        }
+
+        function showToast() {
+            const t = document.createElement('div');
+            t.innerHTML = `<div id="8" tabindex="0" data-in="true" class="Toastify__toast Toastify__toast-theme--light Toastify__toast--success" role="alert" style="position:fixed; bottom:20px; right:20px; z-index:99999; background:#fff; color:#000; padding:15px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5); display:flex; align-items:center; gap:10px; animation:fadeIn 0.5s ease-out;"><div class="Toastify__toast-icon Toastify--animate-icon Toastify__zoom-enter"><svg viewBox="0 0 24 24" width="24" height="24" fill="#07bc0c"><path d="M12 0a12 12 0 1012 12A12.014 12.014 0 0012 0zm6.927 8.2l-6.845 9.289a1.011 1.011 0 01-1.43.188l-4.888-3.908a1 1 0 111.25-1.562l4.076 3.261 6.227-8.451a1 1 0 111.61 1.183z"></path></svg></div><div><b style="color:#07bc0c">Depósito Confirmado!</b><br><span style="font-size:12px">Seu saldo já está disponível.</span></div></div>`;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 4000);
         }
 
         function copyCode() {

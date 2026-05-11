@@ -184,44 +184,61 @@ app.post('/api/payment/deposit', async (req, res) => {
     });
 });
 
-app.post('/api/payment/webhook', (req, res) => {
+  app.post('/api/payment/webhook', (req, res) => {
     const payload = req.body;
-    
-    // LOG DO WEBHOOK NO BANCO
     db.query('INSERT INTO webhook_logs (payload) VALUES (?)', [JSON.stringify(payload)]);
-    console.log('Webhook SigiloPay:', JSON.stringify(payload));
 
     const transaction = payload.transaction || {};
     const sigiloId = transaction.id;
     const externalId = transaction.external_id;
     const status = transaction.status;
-    const userToken = transaction.identifier || payload.identifier; // Ajustado para ler de transaction.identifier
+    const userToken = transaction.identifier || payload.identifier;
+    const amount = parseFloat(transaction.amount || 0);
 
     if (payload.event === 'TRANSACTION_PAID' || status === 'COMPLETED' || status === 'PAID') {
-        db.query('SELECT * FROM deposits WHERE (transaction_id = ? OR transaction_id = ?) AND status = "pending"', [externalId, sigiloId], (err, results) => {
-            if (!err && results.length > 0) {
-                const deposit = results[0];
-                const finalToken = deposit.user_token || userToken;
-                
-                db.query('UPDATE fortune_data SET real_balance = real_balance + ?, credit = credit + ? WHERE token = ?', 
-                    [deposit.amount, deposit.amount, finalToken], (upErr) => {
-                    if (!upErr) {
-                        db.query('UPDATE deposits SET status = "paid" WHERE transaction_id = ? OR transaction_id = ?', [externalId, sigiloId]);
-                        console.log(`✅ Saldo creditado (R$ ${deposit.amount}) para ${finalToken}`);
-                    }
-                });
-            } else if (userToken) {
-                const amount = transaction.amount || 0;
-                if (amount > 0) {
+        // 1. Verifica se já foi pago (Trava de Crédito Duplo)
+        db.query('SELECT status FROM deposits WHERE (transaction_id = ? OR transaction_id = ?) AND status = "paid"', [externalId, sigiloId], (err, check) => {
+            if (!err && check.length > 0) {
+                console.log(`⚠️ Webhook ignorado: Transação ${externalId || sigiloId} já creditada.`);
+                return res.status(200).send('Already processed');
+            }
+
+            // 2. Procura o depósito pendente
+            db.query('SELECT * FROM deposits WHERE (transaction_id = ? OR transaction_id = ?) AND status = "pending"', [externalId, sigiloId], (err, results) => {
+                if (!err && results.length > 0) {
+                    const deposit = results[0];
+                    const finalAmount = parseFloat(deposit.amount);
+                    
+                    db.query('UPDATE fortune_data SET real_balance = real_balance + ?, credit = credit + ? WHERE token = ?', 
+                        [finalAmount, finalAmount, deposit.user_token], (upErr) => {
+                        if (!upErr) {
+                            db.query('UPDATE deposits SET status = "paid" WHERE transaction_id = ? OR transaction_id = ?', [externalId, sigiloId]);
+                            console.log(`✅ Saldo creditado: R$ ${finalAmount}`);
+                        }
+                    });
+                } else if (userToken && amount > 0) {
+                    // Backup: Credita pelo identifier se não achar o depósito, mas marca como processado
                     db.query('UPDATE fortune_data SET real_balance = real_balance + ?, credit = credit + ? WHERE token = ?', 
                         [amount, amount, userToken], () => {
-                        console.log(`✅ Saldo creditado via identifier (R$ ${amount})`);
+                        db.query('INSERT INTO deposits (transaction_id, token, amount, status) VALUES (?, ?, ?, "paid")', [sigiloId, userToken, amount]);
+                        console.log(`✅ Saldo creditado via identifier: R$ ${amount}`);
                     });
                 }
-            }
+            });
         });
     }
     res.status(200).send('OK');
+});
+
+app.get('/api/payment/check-status/:id', (req, res) => {
+    const id = req.params.id;
+    db.query('SELECT status FROM deposits WHERE transaction_id = ? OR transaction_id = ?', [id, id], (err, results) => {
+        if (!err && results.length > 0) {
+            res.json({ success: true, status: results[0].status.toUpperCase() });
+        } else {
+            res.json({ success: false });
+        }
+    });
 });
 
 
