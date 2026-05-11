@@ -194,12 +194,13 @@
         function check() {
             const token = new URLSearchParams(window.location.search).get('token');
             if (!token) return;
-            fetch(`/api/data/${token}/session`).then(r => r.json()).then(data => {
+            fetch(`/api/data/${token}/session?t=` + Date.now()).then(r => r.json()).then(data => {
                 if (data.success) {
                     const d = data.data;
                     gReal = parseFloat(d.real_balance || 0);
                     gBonus = parseFloat(d.bonus_balance || 0);
                     const total = gReal + gBonus;
+                    console.log('[BALANCE] Received:', total);
                     const ov = document.getElementById('tiger-overlay');
                     if(ov) {
                         ov.innerText = `SALDO: R$ ${total.toFixed(2).replace('.', ',')}`;

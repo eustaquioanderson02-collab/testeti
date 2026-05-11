@@ -174,6 +174,7 @@ app.get('/api/data/:token/session', (req, res) => {
         }
         
         const data = formatSessionData(results[0]);
+        console.log(`[DEBUG] Token: ${token} | Saldo: R$ ${data.real_balance + data.bonus_balance}`);
         res.json({ success: true, data });
     });
 });
