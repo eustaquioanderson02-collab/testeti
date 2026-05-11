@@ -19,6 +19,25 @@
     </style>
 </head>
 <body>
+<script>
+    // Suprime avisos internos do motor Construct 3 (SES lockdown) que não afetam o funcionamento
+    (function() {
+        const _filterSES = (fn) => function(...args) {
+            const msg = args[0] ? String(args[0]) : '';
+            if (
+                msg.includes('SES') ||
+                msg.includes('lockdown') ||
+                msg.includes('Removing intrinsics') ||
+                msg.includes('unpermitted intrinsics') ||
+                msg.includes('SES_UNHANDLED_REJECTION')
+            ) return;
+            return fn.apply(console, args);
+        };
+        console.log   = _filterSES(console.log);
+        console.warn  = _filterSES(console.warn);
+        console.error = _filterSES(console.error);
+    })();
+</script>
     <!-- Overlay de Saldo -->
     <div id="tiger-overlay" style="position: fixed; top: 15px; left: 50%; transform: translateX(-50%); background: #111; color: #ffcc00; padding: 10px 25px; border-radius: 30px; z-index: 9999; font-weight: 900; border: 1px solid #ffcc0055; display: none; box-shadow: 0 5px 20px rgba(0,0,0,0.8);">
         SALDO: R$ 0,00
