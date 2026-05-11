@@ -36,26 +36,113 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
-const sqlite3 = require('sqlite3').verbose();
 
 let db;
 const useMysql = config.useMysql === true;
 
 if (useMysql) {
   db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'fortune',
+    host: config.mysql.host,
+    port: config.mysql.port,
+    user: config.mysql.user,
+    password: process.env.DB_PASSWORD || config.mysql.password,
+    database: config.mysql.database,
+    ssl: config.mysql.ssl ? { rejectUnauthorized: false } : undefined,
+    multipleStatements: true
   });
+
   db.connect((err) => {
     if (err) {
       console.error('Erro ao conectar ao banco de dados MySQL:', err);
       throw err;
     }
-    console.log('Conexão com o banco de dados MySQL estabelecida.');
+    console.log('Conexão com o banco de dados MySQL Aiven estabelecida.');
+
+    const initQueries = `
+      CREATE TABLE IF NOT EXISTS fortune_data (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_name VARCHAR(255) DEFAULT 'Guest',
+        fullName VARCHAR(255),
+        email VARCHAR(255) UNIQUE,
+        password VARCHAR(255),
+        cpf VARCHAR(20),
+        phone VARCHAR(20),
+        credit DOUBLE DEFAULT 0,
+        real_balance DOUBLE DEFAULT 0,
+        bonus_balance DOUBLE DEFAULT 0,
+        is_first_deposit INT DEFAULT 0,
+        num_line INT DEFAULT 5,
+        line_num INT DEFAULT 5,
+        bet_amount INT DEFAULT 2,
+        free_num INT DEFAULT 0,
+        free_total INT DEFAULT -1,
+        free_amount INT DEFAULT 18000,
+        free_multi INT DEFAULT 0,
+        freespin_mode INT DEFAULT 0,
+        multiple_list TEXT DEFAULT NULL,
+        credit_line INT DEFAULT 10,
+        buy_feature INT DEFAULT 50,
+        buy_max INT DEFAULT 1300,
+        feature TEXT DEFAULT NULL,
+        total_way INT DEFAULT 27,
+        multipy INT DEFAULT 0,
+        token VARCHAR(255) UNIQUE,
+        freemode INT DEFAULT 0,
+        jackpot INT DEFAULT 0,
+        free_spin INT DEFAULT 0,
+        losses INT DEFAULT 0,
+        scaler INT DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS icon_data (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        icon_name VARCHAR(255) NOT NULL,
+        token VARCHAR(255),
+        feature_symbol VARCHAR(255)
+      );
+
+      CREATE TABLE IF NOT EXISTS losses (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        token VARCHAR(255) NOT NULL,
+        amount INT NOT NULL DEFAULT 0,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        bet_amount INT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS wins (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        token VARCHAR(255) NOT NULL,
+        amount INT NOT NULL DEFAULT 0,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        win_amount INT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS deposits (
+        id VARCHAR(255) PRIMARY KEY,
+        token VARCHAR(255) NOT NULL,
+        amount DOUBLE NOT NULL,
+        status VARCHAR(50) DEFAULT 'PENDING',
+        qr_code TEXT,
+        copy_paste TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expires_at DATETIME
+      );
+    `;
+
+    db.query(initQueries, (err) => {
+      if (err) console.error("Erro ao criar tabelas MySQL:", err);
+      else {
+        db.query("SELECT count(*) as count FROM fortune_data", (err, results) => {
+          if (!err && results[0].count === 0) {
+            db.query(`INSERT INTO fortune_data (user_name, credit, num_line, line_num, bet_amount, free_num, free_total, free_amount, free_multi, freespin_mode, credit_line, buy_feature, buy_max, total_way, multipy, token, freemode, jackpot, free_spin, losses) 
+            VALUES ('Guest', 43923, 5, 5, 32, 0, -1, 5000, 0, 0, 10, 50, 1300, 27, 0, '10a2d98d-daa5-47f4-ab58-593767798ba1', 0, 0, 0, 0)`);
+          }
+        });
+      }
+    });
   });
 } else {
+  const sqlite3 = require('sqlite3').verbose();
   const isVercel = process.env.VERCEL === '1';
   const baseDir = isVercel ? '/tmp/base' : path.join(__dirname, 'base');
   if (!fs.existsSync(baseDir)) {
