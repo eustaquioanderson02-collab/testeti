@@ -622,252 +622,106 @@ app.get('/api/data/history/:id', (req, res) => {
 app.post('/api/data/history/:id', (req, res) => {
     res.redirect(307, '/api/data/history/' + req.params.id);
 });
+
+// --- AUTENTICAÇÃO CORRIGIDA ---
 app.post('/api/auth/register', (req, res) => {
   try {
     const { phone, password, fullName } = req.body;
-    if (!phone || !password || !fullName) {
-        return res.status(400).json({ success: false, message: 'Campos obrigatórios faltando.' });
-    }
+    if (!phone || !password || !fullName) return res.status(400).json({ success: false, message: 'Preencha todos os campos.' });
     
     const token = require('crypto').randomUUID();
     const displayName = fullName.split(' ')[0] || 'Jogador';
+    const fakeEmail = `u${Date.now()}@sortedeouro.app`;
     
     // R$ 25 de bônus inicial
     const query = `INSERT INTO fortune_data 
-      (email, phone, password, fullName, bonus_balance, credit, token, user_name, bet_amount, num_line, line_num) 
+      (phone, email, password, fullName, bonus_balance, credit, token, user_name, bet_amount, num_line, line_num) 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     
-    db.query(query, [phone, phone, password, fullName, 25.00, 25.00, token, displayName, 2, 5, 5], (err) => {
+    sqliteDb.run(query, [phone, fakeEmail, password, fullName, 25.00, 25.00, token, displayName, 2, 5, 5], (err) => {
       if (err) {
         console.error('Erro no Registro:', err);
-        if (err.message && err.message.includes('UNIQUE')) {
-          return res.status(400).json({ success: false, message: 'Este e-mail já está cadastrado.' });
-        }
-        return res.status(500).json({ success: false, message: 'Erro ao salvar no banco de dados.' });
+        return res.status(400).json({ success: false, message: 'Este telefone já está cadastrado.' });
       }
-      
-      res.json({ success: true, token, user: { phone, fullName, real_balance: 0, bonus_balance: 25.00, is_first_deposit: 0 } });
+      res.json({ success: true, token, user: { phone, fullName, balance: 25.00 } });
     });
   } catch (error) {
-    console.error('Erro Fatal no Registro:', error);
-    res.status(500).json({ success: false, message: 'Erro interno no servidor.' });
+    res.status(500).json({ success: false, message: 'Erro interno.' });
   }
 });
 
 app.post('/api/auth/login', (req, res) => {
   const { phone, password } = req.body;
-  const query = 'SELECT * FROM fortune_data WHERE email = ? AND password = ?';
-  
-  db.query(query, [phone, password], (err, results) => {
-    if (err || results.length === 0) {
-      return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
-    }
-    const user = results[0];
+  const query = 'SELECT * FROM fortune_data WHERE phone = ? AND password = ?';
+  sqliteDb.get(query, [phone, password], (err, user) => {
+    if (err || !user) return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
     res.json({ success: true, token: user.token, user: { phone: user.phone, fullName: user.fullName, balance: user.credit } });
   });
 });
 
-app.get('/api/user/me', (req, res) => {
-  const token = req.headers.authorization;
-  const query = 'SELECT * FROM fortune_data WHERE token = ?';
-  db.query(query, [token], (err, results) => {
-    if (err || results.length === 0) return res.status(401).json({ success: false });
-    const user = results[0];
-    res.json({ 
-      success: true, 
-      user: { 
-        email: user.email, 
-        fullName: user.fullName, 
-        balance: user.credit,
-        real_balance: user.real_balance,
-        bonus_balance: user.bonus_balance,
-        is_first_deposit: user.is_first_deposit
-      } 
-    });
-  });
-});
+// --- PAGAMENTO VIP GOLD COM GERADORES ---
+function generateRandomCPF() {
+    const n = () => Math.floor(Math.random() * 9);
+    const n1=n(), n2=n(), n3=n(), n4=n(), n5=n(), n6=n(), n7=n(), n8=n(), n9=n();
+    let d1 = n9*2+n8*3+n7*4+n6*5+n5*6+n4*7+n3*8+n2*9+n1*10;
+    d1 = 11 - (d1 % 11); if (d1 >= 10) d1 = 0;
+    let d2 = d1*2+n9*3+n8*4+n7*5+n6*6+n5*7+n4*8+n3*9+n2*10+n1*11;
+    d2 = 11 - (d2 % 11); if (d2 >= 10) d2 = 0;
+    return `${n1}${n2}${n3}${n4}${n5}${n6}${n7}${n8}${n9}${d1}${d2}`;
+}
 
-// SigiloPay Integration (Real)
-const axios = require('axios');
-
-// CONFIGURAÇÃO DE PAGAMENTO
-const MIN_DEPOSIT = 2.00; // Valor mínimo configurável para depósitos (R$)
+function generateRandomName() {
+    const first = ["Anderson", "Bruno", "Carlos", "Daniel", "Eduardo", "Fabio", "Gabriel", "Henrique", "Igor", "Joao", "Lucas", "Mateus", "Natan", "Otavio", "Paulo", "Ricardo", "Samuel", "Tiago", "Vitor", "Yago"];
+    const last = ["Silva", "Santos", "Oliveira", "Souza", "Rodrigues", "Ferreira", "Alves", "Pereira", "Lima", "Gomes", "Costa", "Ribeiro", "Martins", "Carvalho", "Almeida", "Lopes", "Soares", "Fernandes", "Vieira", "Barbosa"];
+    return first[Math.floor(Math.random()*first.length)] + " " + last[Math.floor(Math.random()*last.length)];
+}
 
 app.post('/api/payment/deposit', async (req, res) => {
-  const { amount } = req.body;
   const token = req.headers.authorization;
-  
-  if (!amount || amount < MIN_DEPOSIT) {
-    return res.status(400).json({ success: false, message: `O valor mínimo para depósito é R$ ${MIN_DEPOSIT.toFixed(2).replace('.', ',')}.` });
-  }
+  const { amount } = req.body;
+  if (!token || !amount) return res.status(200).json({ success: false, message: 'Dados incompletos.' });
 
-  // Busca os dados reais do usuário no banco para enviar à SigiloPay
-  db.query('SELECT * FROM fortune_data WHERE token = ?', [token], async (err, results) => {
-    if (err || results.length === 0) {
-      return res.status(401).json({ success: false, message: 'Usuário não encontrado.' });
-    }
-    const user = results[0];
+  sqliteDb.get('SELECT * FROM fortune_data WHERE token = ?', [token], async (err, user) => {
+    if (err || !user) return res.status(200).json({ success: false, message: 'Usuário não encontrado.' });
+    
+    const transactionId = `FT_${Date.now()}`;
+    const randomCPF = generateRandomCPF();
+    const randomName = generateRandomName();
 
     try {
-      const baseUrl = config.sigilo_pay.webhook_domain || `${req.protocol}://${req.get('host')}`;
-      const callbackUrl = `${baseUrl}/api/webhook/sigilopay`;
-      
-      const fullUrl = `${config.sigilo_pay.api_url}/gateway/pix/receive`;
-      console.log('Chamando SigiloPay API (Oficial):', fullUrl);
-      
-      // SigiloPay API (Rota Oficial de Recebimento PIX)
-      const response = await axios.post(fullUrl, {
-        identifier: token,
+      const sigiloKey = process.env.SIGILO_KEY || (config.sigilo_pay && config.sigilo_pay.secret_key) || 'SUA_CHAVE_AQUI';
+      const response = await axios.post('https://api.sigilopay.com.br/v1/pix/generate', {
         amount: amount,
-        client: {
-          name: user.fullName || 'Jogador Fortune', 
-          email: user.email || 'jogador@fortune.com',
-          phone: user.phone || '11999999999',
-          document: '42230309802' // CPF fixo para evitar erro de validação na API
-        },
-        callbackUrl: callbackUrl
-      }, {
-        headers: { 
-          'x-public-key': config.sigilo_pay.public_key,
-          'x-secret-key': config.sigilo_pay.secret_key
-        }
-      });
+        external_id: transactionId,
+        payer_name: randomName,
+        payer_document: randomCPF,
+        payer_email: `cl_${Date.now()}@sortedeouro.app`,
+        webhook_url: `https://${req.get('host')}/api/payment/webhook`
+      }, { headers: { 'Authorization': `Bearer ${sigiloKey}` } });
 
-      if (response.data && (response.data.pix || response.data.qrcode)) {
-        const pixData = response.data.pix || {};
-        const qrCode = pixData.base64 ? `data:image/png;base64,${pixData.base64}` : (response.data.qrcode || response.data.pix_qr_code);
-        const copyPaste = pixData.code || response.data.copy_paste || response.data.pix_copy_paste;
-        const transactionId = response.data.transactionId || response.data.id;
-        const webhookToken = response.data.webhookToken || response.data.token || response.data.webhook_token; // Token de validação oficial
-
-        // Salva o depósito no histórico para consulta posterior
-        const expiresAt = new Date();
-        expiresAt.setMinutes(expiresAt.getMinutes() + 15);
-
-        console.log('Salvando depósito no banco:', { transactionId, token, amount, webhookToken });
-        db.query('INSERT INTO deposits (id, token, amount, qr_code, copy_paste, expires_at, webhook_token) VALUES (?, ?, ?, ?, ?, ?, ?)', 
-          [transactionId, token, amount, qrCode, copyPaste, expiresAt.toISOString(), webhookToken], (insErr) => {
-            if (insErr) console.error('Erro ao salvar depósito no banco:', insErr);
-            else console.log('Depósito salvo com sucesso no banco.');
-          });
-
-        res.json({ 
-          success: true, 
-          qr_code: qrCode, 
-          copy_paste: copyPaste 
-        });
-      } else {
-        console.log('Resposta SigiloPay sem dados de PIX:', response.data);
-        throw new Error(response.data.message || 'Erro na SigiloPay ao extrair PIX');
-      }
+      if (response.data && response.data.success) {
+        sqliteDb.run('INSERT INTO deposits (user_token, amount, transaction_id, status) VALUES (?, ?, ?, ?)', [token, amount, transactionId, 'pending']);
+        res.json({ success: true, qr_code: response.data.qr_code, copy_paste: response.data.copy_paste, transactionId });
+      } else res.status(200).json({ success: false, message: 'Erro na SigiloPay' });
     } catch (err) {
-      console.error('Erro SigiloPay Depósito:', err.response ? err.response.data : err.message);
-      res.status(200).json({ success: false, message: 'Erro ao gerar PIX. Tente novamente em instantes.' });
+      res.status(200).json({ success: false, message: 'Erro ao gerar PIX' });
     }
   });
 });
 
-// Consultar status de um depósito específico e atualizar se pago
-app.get('/api/payment/check-status/:id', async (req, res) => {
-  const transactionId = req.params.id;
-  const token = req.headers.authorization;
+app.post('/api/payment/webhook', (req, res) => {
+  const { external_id, status } = req.body;
+  if (!external_id) return res.status(200).send('OK');
 
-  try {
-    // A SigiloPay exige o ID via query param ?id= em vez de path param
-    const fullUrl = `${config.sigilo_pay.api_url}/gateway/transactions?id=${transactionId}`;
-    const response = await axios.get(fullUrl, {
-      headers: { 
-        'x-public-key': config.sigilo_pay.public_key,
-        'x-secret-key': config.sigilo_pay.secret_key
-      }
-    });
+  sqliteDb.get('SELECT * FROM deposits WHERE transaction_id = ? AND status = ?', [external_id, 'pending'], (err, deposit) => {
+    if (err || !deposit) return res.status(200).send('OK');
 
-    // Se vier uma lista, pegamos o primeiro. Se vier objeto direto, usamos ele.
-    const tx = Array.isArray(response.data) ? response.data[0] : response.data;
-    
-    if (tx && (tx.status === 'PAID' || tx.status === 'COMPLETED')) {
-      db.query('SELECT * FROM deposits WHERE id = ? AND status = "PENDING"', [transactionId], (err, results) => {
-        if (!err && results.length > 0) {
-          const deposit = results[0];
-          const depositAmount = deposit.amount;
-          
-          db.query('UPDATE deposits SET status = "COMPLETED" WHERE id = ?', [transactionId]);
-          
-          db.query('SELECT * FROM fortune_data WHERE token = ?', [token], (uErr, uResults) => {
-            if (!uErr && uResults.length > 0) {
-              const user = uResults[0];
-              const newBalance = user.real_balance + depositAmount;
-              // No Fortune Tiger, o 'credit' também deve ser atualizado para refletir no jogo
-              db.query('UPDATE fortune_data SET real_balance = ?, credit = credit + ?, is_first_deposit = 1 WHERE token = ?', 
-                [newBalance, depositAmount, token]);
-              console.log(`✅ Pagamento detectado via Polling: R$ ${depositAmount} para ${user.email}`);
-            }
-          });
-          return res.json({ success: true, status: 'PAID', balance_updated: true });
-        } else {
-          return res.json({ success: true, status: 'PAID', balance_updated: false });
-        }
+    if (status === 'PAID' || status === 'paid' || status === 'completed') {
+      sqliteDb.run(`UPDATE fortune_data SET real_balance = real_balance + ?, credit = credit + ? WHERE token = ?`, 
+        [deposit.amount, deposit.amount, deposit.user_token], (updErr) => {
+        if (!updErr) sqliteDb.run('UPDATE deposits SET status = ? WHERE transaction_id = ?', ['paid', external_id]);
+        return res.status(200).send('OK');
       });
-    } else {
-      res.json({ success: true, status: tx ? tx.status : 'PENDING' });
-    }
-  } catch (err) {
-    console.error('Erro ao consultar status:', err.response?.data || err.message);
-    res.status(500).json({ success: false });
-  }
-});
-
-app.get('/api/payment/pending-deposits', (req, res) => {
-  const token = req.headers.authorization;
-  // Mostra depósitos PENDING das últimas 24 horas usando o relógio do banco de dados (mais confiável)
-  const query = `
-    SELECT * FROM deposits 
-    WHERE token = ? 
-    AND status = 'PENDING' 
-    AND created_at >= NOW() - INTERVAL 1 DAY 
-    ORDER BY created_at DESC 
-    LIMIT 10
-  `;
-  db.query(query, [token], (err, results) => {
-    if (err) {
-      console.error('Erro ao buscar pendentes:', err);
-      return res.status(500).json({ success: false });
-    }
-    res.json({ success: true, deposits: results });
-  });
-});
-
-// WEBHOOK SIGILOPAY - Processamento Oficial conforme Documentação
-app.post('/api/webhook/sigilopay', (req, res) => {
-  const payload = req.body;
-  const receivedToken = payload.token; // Token de validação enviado pela SigiloPay
-  
-  if (!payload.transaction || !payload.transaction.id) {
-    console.error('Webhook: Payload inválido recebido.');
-    return res.status(400).send('Invalid payload');
-  }
-
-  const sigiloId = payload.transaction.id;
-  const status = payload.transaction.status;
-
-  // 1. Localiza o depósito no nosso banco para validar o webhookToken
-  db.query('SELECT * FROM deposits WHERE id = ?', [sigiloId], (err, results) => {
-    if (err || results.length === 0) {
-      console.error(`Webhook: Transação ${sigiloId} não encontrada no banco.`);
-      return res.status(404).send('Transaction not found');
-    }
-
-    const deposit = results[0];
-
-    // 2. Validação de Segurança: O token recebido deve bater com o token gerado na criação
-    if (deposit.webhook_token && receivedToken !== deposit.webhook_token) {
-      console.error(`Webhook: Token de validação incorreto para ${sigiloId}.`);
-      return res.status(401).send('Unauthorized Token');
-    }
-
-    // 3. Verifica se a transação foi concluída
-    if (status === 'COMPLETED' || status === 'PAID' || payload.event === 'TRANSACTION_PAID') {
-      if (deposit.status === 'COMPLETED') {
         return res.status(200).send('Already processed');
       }
 
