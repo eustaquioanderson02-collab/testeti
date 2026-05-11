@@ -12,16 +12,8 @@ const path = require('path');
 app.use(cors());
 
 app.use(
-  helmet.contentSecurityPolicy({
-    directives: {
-      defaultSrc: ["'self'"],
-      connectSrc: ["'self'", "*"],
-      imgSrc: ["'self'", "data:", "blob:", "*"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "*"],
-      styleSrc: ["'self'", "'unsafe-inline'", "*"],
-      workerSrc: ["'self'", "blob:"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"]
-    },
+  helmet({
+    contentSecurityPolicy: false,
   })
 );
 
