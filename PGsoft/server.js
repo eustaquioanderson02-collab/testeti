@@ -14,6 +14,14 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
+// Headers que isolam a página de extensões do browser (impede lockdown-install.js de extensões)
+app.use((req, res, next) => {
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+});
+
 app.use('/FortuneTiger', express.static(path.join(__dirname, '../FortuneTiger')));
 app.use(express.static(path.join(__dirname, 'public')));
 
