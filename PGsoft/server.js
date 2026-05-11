@@ -378,10 +378,13 @@ app.post('/api/data/:token/spin', (req, res) => {
   // ==========================================
   
   // Captura o valor da aposta real do jogo
-  let betAmount = req.body.betAmount || req.body.bet_amount || req.body.amount || req.body.b;
-  if (!betAmount && req.body.cs && req.body.ml) {
+  let betAmount = req.body.betAmount || req.body.bet_amount || req.body.amount || req.body.b || req.query.betAmount || req.query.bet_amount || req.query.amount || req.query.b;
+  let cs = req.body.cs || req.query.cs;
+  let ml = req.body.ml || req.query.ml;
+  
+  if (!betAmount && cs && ml) {
       // Cálculo padrão de apostas PG Soft (Bet Size * Bet Level * Base Bet (5))
-      betAmount = parseFloat(req.body.cs) * parseInt(req.body.ml) * 5;
+      betAmount = parseFloat(cs) * parseInt(ml) * 5;
   }
   
   if (!betAmount || isNaN(betAmount) || betAmount <= 0) {
@@ -989,8 +992,11 @@ app.get('/api/data/:token/icons', (req, res) => {
     }
 
     if (results.length === 0) {
-      const errorResponse = new ErrorResponse('Ícones não encontrados.');
-      return res.status(404).json(errorResponse);
+      const defaultIcons = [];
+      for (let i = 0; i < 9; i++) {
+        defaultIcons.push({ icon_name: 'Symbol_' + Math.floor(Math.random() * 8 + 1), feature_symbol: null });
+      }
+      return res.json(new SuccessResponse(defaultIcons, 'Ícones padrão gerados com sucesso'));
     }
 
     const iconsData = results;
