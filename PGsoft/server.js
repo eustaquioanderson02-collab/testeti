@@ -26,28 +26,73 @@ app.use('/FortuneTiger', express.static(path.join(__dirname, '../FortuneTiger'))
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── BANCO DE DADOS AIVEN ───────────────────────────────────────────────────
-// Pool pequeno (2) + keepAlive para evitar "socket ended by other party" do Aiven
-const db = mysql.createPool({
-    host: config.mysql.host,
-    port: config.mysql.port,
-    user: config.mysql.user,
+// SOLUÇÃO DEFINITIVA para Vercel + Aiven: 1 conexão por instância com lazy reconnect
+// Evita "Too many connections": máximo = nº de instâncias Vercel ativas (geralmente < 10)
+const dbConfig = {
+    host:     config.mysql.host,
+    port:     config.mysql.port,
+    user:     config.mysql.user,
     password: process.env.DB_PASSWORD || config.mysql.password,
     database: config.mysql.database,
     ssl: { rejectUnauthorized: false },
-    waitForConnections: true,
-    connectionLimit: 2,
-    queueLimit: 0,
-    enableKeepAlive: true,
-    keepAliveInitialDelay: 10000,
-    connectTimeout: 30000
-});
+    connectTimeout: 20000
+};
 
-// Ping periódico para manter conexão viva no Aiven (evita idle timeout)
-setInterval(() => {
-    db.query('SELECT 1', (err) => {
-        if (err) console.warn('[DB keepalive] erro:', err.message);
+let _db = null;
+
+function getDb(cb) {
+    // Se conexão está ativa e autenticada, reutiliza
+    if (_db && _db.state === 'authenticated') {
+        return cb(null, _db);
+    }
+    // Cria ou recria a conexão
+    if (_db) { try { _db.destroy(); } catch(e) {} }
+    _db = mysql.createConnection(dbConfig);
+    _db.connect((err) => {
+        if (err) {
+            console.error('[DB] Falha ao conectar:', err.message);
+            _db = null;
+            return cb(err);
+        }
+        console.log('[DB] Conectado ao Aiven MySQL.');
+        cb(null, _db);
     });
-}, 60000); // a cada 60 segundos
+    _db.on('error', (err) => {
+        console.error('[DB] Erro na conexão:', err.message);
+        _db = null; // Força reconexão na próxima query
+    });
+}
+
+// Wrapper que imita db.query() mas com reconexão automática
+const db = {
+    query(sql, params, cb) {
+        if (typeof params === 'function') { cb = params; params = []; }
+        getDb((err, conn) => {
+            if (err) return cb(err);
+            conn.query(sql, params, (qErr, results) => {
+                // Se conexão perdida, tenta uma vez mais
+                if (qErr && (qErr.code === 'PROTOCOL_CONNECTION_LOST' || qErr.code === 'ECONNRESET')) {
+                    _db = null;
+                    getDb((err2, conn2) => {
+                        if (err2) return cb(err2);
+                        conn2.query(sql, params, cb);
+                    });
+                } else {
+                    cb(qErr, results);
+                }
+            });
+        });
+    }
+};
+
+// Ping de keep-alive a cada 45s para o Aiven não fechar a conexão ociosa
+setInterval(() => {
+    if (_db && _db.state === 'authenticated') {
+        _db.query('SELECT 1', (err) => {
+            if (err) { console.warn('[DB keepalive] erro:', err.message); _db = null; }
+        });
+    }
+}, 45000);
 
 
 // Inicializa tabelas sequencialmente (Aiven não aceita multi-statement em pool)
