@@ -115,7 +115,7 @@ function formatSessionData(s) {
         user_name: s.fullName || s.token || 'Guest',
         credit: totalReal,
         num_line: 5,
-        line_num: 5,
+        line_num: 10,
         bet_amount: 0.2,
         free_num: 0,
         free_total: -1,
@@ -123,11 +123,11 @@ function formatSessionData(s) {
         free_multi: 0,
         freespin_mode: 0,
         multiple_list: [],
-        credit_line: 1,
-        buy_feature: 0,
-        buy_max: 0,
+        credit_line: 3,
+        buy_feature: 50,
+        buy_max: 1300,
         feature: {},
-        total_way: 5,
+        total_way: 36,
         multipy: 0,
         currency_prefix: "R$ ",
         currency_suffix: "",
@@ -145,9 +145,10 @@ function formatSessionData(s) {
             access_feature: false
         },
         icon_data: [
-            "Symbol_2","Symbol_0","Symbol_2",
-            "Symbol_0","Symbol_0","Symbol_0",
-            "Symbol_0","Symbol_0","Symbol_0"
+            'Symbol_2','Symbol_0','Symbol_2',
+            'Symbol_0','Symbol_0','Symbol_0',
+            'Symbol_0','Symbol_0','Symbol_0',
+            '_blank','Symbol_0','_blank'  // 12 elementos: igual ao SlotIcons do spin
         ],
         active_lines: [],
         drop_line: [],
@@ -241,8 +242,11 @@ app.get('/api/data/:token/icons', (req, res) => {
 
 app.post('/api/data/:token/spin', (req, res) => {
     const token = req.params.token;
-    let cs = parseFloat(req.body.cs) || 1;
-    let ml = parseInt(req.body.ml) || 1;
+    // Log para diagnóstico — mostra o que o motor C3 envia
+    console.log('[SPIN BODY]', JSON.stringify(req.body));
+
+    let cs = parseFloat(req.body.cs) || 0.2;
+    let ml = parseInt(req.body.ml)  || 1;
 
     // Fallback para body urlencoded/string
     if (!req.body.cs && typeof req.body === 'string') {
