@@ -314,11 +314,10 @@ app.get('/api/data/:token/session', (req, res) => {
   db.query(query, [token], (err, results) => {
     if (err) {
       console.error('Erro ao buscar dados da sessão:', err);
-      const errorResponse = new ErrorResponse('Erro ao buscar dados da sessão.');
-      return res.status(500).json(errorResponse);
+      return res.status(500).json({ success: false, message: 'Erro no Banco: ' + err.message });
     }
 
-    if (results.length === 0) {
+    if (!results || results.length === 0) {
       if (token && token.startsWith('guest_')) {
           console.log('Criando conta de convidado para:', token);
           const insertGuest = `INSERT INTO fortune_data (token, user_name, real_balance, bonus_balance, credit, bet_amount, num_line, line_num) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
@@ -345,9 +344,13 @@ app.get('/api/data/:token/session', (req, res) => {
       return res.status(404).json(errorResponse);
     }
 
-    const sessionData = formatSessionData(results[0]);
-    const successResponse = new SuccessResponse(sessionData, 'Dados da sessão carregados com sucesso');
-    res.json(successResponse);
+    try {
+        const sessionData = formatSessionData(results[0]);
+        res.json(new SuccessResponse(sessionData, 'Dados da sessão carregados com sucesso'));
+    } catch (e) {
+        console.error('Erro ao formatar sessão:', e);
+        res.status(500).json({ success: false, message: 'Erro ao formatar dados: ' + e.message });
+    }
   });
 });
 
@@ -391,23 +394,35 @@ app.post('/api/data/:token/spin', (req, res) => {
       
       if (matchCs) cs = matchCs[1];
       if (matchMl) ml = matchMl[1];
-      if (matchB && !betAmount) betAmount = parseFloat(matchB[1]);
       
-      let baseBetAmount = betAmount;
-      if (matchBet && !baseBetAmount) baseBetAmount = parseFloat(matchBet[1]);
-      
-      let cpl = 1;
-      if (matchCpl) cpl = parseInt(matchCpl[1]);
-      
-      let numline = 5;
-      if (matchNumline) numline = parseInt(matchNumline[1]);
+      // Prioridade 1: Tenta pegar 'b' ou 'betamount' (Aposta Total ou Bet Size)
+      let extractedAmount = null;
+      if (matchB) extractedAmount = parseFloat(matchB[1]);
+      else if (matchBet) extractedAmount = parseFloat(matchBet[1]);
+      else if (req.body.betamount) extractedAmount = parseFloat(req.body.betamount);
 
-      // Se o motor do jogo enviar betamount como Bet Size e cpl como Bet Level, calcular a aposta total
-      if (baseBetAmount && matchCpl) {
-          betAmount = baseBetAmount * cpl * numline;
-      } else {
-          betAmount = baseBetAmount;
+      // Parâmetros multiplicadores
+      let cpl = matchCpl ? parseInt(matchCpl[1]) : (req.body.cpl ? parseInt(req.body.cpl) : 1);
+      let numline = matchNumline ? parseInt(matchNumline[1]) : (req.body.numline ? parseInt(req.body.numline) : 5);
+
+      if (extractedAmount !== null) {
+          // Se o valor extraído for pequeno (provavelmente Bet Size) e tivermos multiplicadores
+          // Ou se o motor do jogo sempre manda Bet Size em 'betamount'
+          if (extractedAmount < 50 && cpl > 0) { 
+              betAmount = extractedAmount * cpl * numline;
+          } else {
+              betAmount = extractedAmount;
+          }
       }
+  }
+
+  // Se nada funcionou mas temos CS e ML (estilo antigo)
+  if (!betAmount && cs && ml) {
+      betAmount = parseFloat(cs.toString().replace(',', '.')) * parseInt(ml) * 5;
+  }
+  
+  if (!betAmount || isNaN(betAmount) || betAmount <= 0) {
+      betAmount = 2.00; // Fallback de segurança
   }
 
   if (cs) cs = cs.toString().replace(',', '.');
