@@ -16,10 +16,25 @@
   <link rel="stylesheet" href="history-detail.css">
   <link rel="stylesheet" href="gamerule.css">
 </head>
+<body style="background: #000; color: #fff; margin: 0; padding: 0; overflow: hidden;"> 
+  
+  <!-- Overlay de Saldo (Obrigatório para o script não dar erro) -->
+  <div id="tiger-overlay" style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #ffcc00; padding: 10px 25px; border-radius: 30px; z-index: 9999; font-family: 'Arial', sans-serif; font-weight: bold; border: 1px solid #ffcc0066; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); font-size: 14px; pointer-events: none;">
+    CARREGANDO SALDO...
+  </div>
+
+  <!-- Botões Flutuantes -->
+  <div style="position: fixed; right: 15px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 15px; z-index: 9998; opacity: 0.85;">
+    <button onclick="openDeposit()" style="background: rgba(20,20,20,0.8); border: 2px solid #ffcc00; color: #ffcc00; padding: 12px; border-radius: 50%; width: 55px; height: 55px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(255,204,0,0.3); font-size: 24px;">💰</button>
+    <button onclick="openWithdrawModal()" style="background: rgba(20,20,20,0.8); border: 2px solid #00ffcc; color: #00ffcc; padding: 12px; border-radius: 50%; width: 55px; height: 55px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(0,255,204,0.3); font-size: 24px;">💸</button>
+  </div>
+
+  <!-- Scripts do Jogo e Sistema Premium -->
   <script>
     let globalReal = 0;
     let globalBonus = 0;
     let isFirstDeposit = 1;
+    let initialCheck = true;
 
     // INICIALIZAÇÃO DE TOKEN
     (function() {
@@ -68,30 +83,54 @@
             <p style="font-size: 10px; color: #444; margin-top: 20px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold;">Seguro via SigiloPay</p>
         </div>
     </div>
+
+    <!-- Modal de Saque Básico (Precisa existir) -->
+    <div id="tiger-withdraw-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: none; align-items: center; justify-content: center; text-align: center; font-family: 'Arial', sans-serif; color: #fff; backdrop-filter: blur(5px);">
+        <div style="background: #1a1410; padding: 30px; border-radius: 20px; border: 1px solid #00ffcc44; width: 90%; max-width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); position: relative;">
+            <button onclick="closeModals()" style="position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: #aaa; font-size: 20px; cursor: pointer;">✖</button>
+            <h2 style="color: #00ffcc; margin-bottom: 10px; font-size: 22px;">Solicitar Saque</h2>
+            <div style="background: rgba(0,255,204,0.1); border: 1px solid rgba(0,255,204,0.3); border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+                <div style="font-size: 14px; color: #aaa; margin-bottom: 5px;">Saldo Real (Sacável)</div>
+                <div id="wd-real-balance" style="font-size: 28px; color: #00ffcc; font-weight: bold;">R$ 0,00</div>
+                <div id="wd-bonus-balance" style="font-size: 12px; color: #ffcc00; margin-top: 8px;">Saldo de Bônus: R$ 0,00</div>
+            </div>
+            <input type="text" id="wd-amount" placeholder="Valor a Sacar (R$)" oninput="maskCurrency(this)" style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #443; background: #000; color: #fff; font-size: 18px; text-align: center; margin-bottom: 15px; box-sizing: border-box; outline: none;">
+            <input type="text" id="wd-pixkey" placeholder="Chave PIX" style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #443; background: #000; color: #fff; font-size: 16px; text-align: center; margin-bottom: 20px; box-sizing: border-box; outline: none;">
+            <button onclick="requestWithdraw()" style="background: linear-gradient(45deg, #00b386, #00ffcc); border: none; padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; color: #000; cursor: pointer; font-size: 16px;">CONFIRMAR SAQUE</button>
+        </div>
+    </div>
     `;
-    document.body.insertAdjacentHTML('beforeend', premiumModalHTML);
+
+    // Injeta o HTML do modal agora que o BODY existe
+    window.addEventListener('DOMContentLoaded', () => {
+        document.body.insertAdjacentHTML('beforeend', premiumModalHTML);
+    });
 
     // FUNÇÕES DE CONTROLE
     function openDeposit() {
-        document.getElementById('current-bal-display').innerText = 'Saldo Atual: R$ ' + (globalReal + globalBonus).toFixed(2).replace('.',',');
+        const display = document.getElementById('current-bal-display');
+        if(display) display.innerText = 'Saldo Atual: R$ ' + (globalReal + globalBonus).toFixed(2).replace('.',',');
         updatePromos();
-        document.getElementById('tiger-premium-modal').style.display = 'flex';
-        document.getElementById('low-qr-container').style.display = 'none';
-        document.getElementById('low-dep-btn').style.display = 'block';
+        const modal = document.getElementById('tiger-premium-modal');
+        if(modal) modal.style.display = 'flex';
+        if(document.getElementById('low-qr-container')) document.getElementById('low-qr-container').style.display = 'none';
+        if(document.getElementById('low-dep-btn')) document.getElementById('low-dep-btn').style.display = 'block';
     }
 
-    function openDepositModal() { openDeposit(); }
-    function openLowBalanceModal() { openDeposit(); }
-
     function openWithdrawModal() {
-        document.getElementById('wd-real-balance').innerText = 'R$ ' + globalReal.toFixed(2).replace('.',',');
-        document.getElementById('wd-bonus-balance').innerText = 'Saldo de Bônus: R$ ' + globalBonus.toFixed(2).replace('.',',');
-        document.getElementById('tiger-withdraw-modal').style.display = 'flex';
+        const wdReal = document.getElementById('wd-real-balance');
+        const wdBonus = document.getElementById('wd-bonus-balance');
+        if(wdReal) wdReal.innerText = 'R$ ' + globalReal.toFixed(2).replace('.',',');
+        if(wdBonus) wdBonus.innerText = 'Saldo de Bônus: R$ ' + globalBonus.toFixed(2).replace('.',',');
+        const modal = document.getElementById('tiger-withdraw-modal');
+        if(modal) modal.style.display = 'flex';
     }
 
     function closeModals() {
-        const ids = ['tiger-premium-modal', 'tiger-withdraw-modal', 'tiger-deposit-modal'];
-        ids.forEach(id => { if(document.getElementById(id)) document.getElementById(id).style.display = 'none'; });
+        ['tiger-premium-modal', 'tiger-withdraw-modal'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = 'none';
+        });
     }
 
     function maskCurrency(input) {
@@ -108,24 +147,26 @@
 
     function selectPromo(num) {
         const val = (num === 1) ? 120 : 200;
-        document.getElementById('low-dep-amount').value = "R$ " + val.toFixed(2).replace('.',',');
-        generatePixLow();
+        const input = document.getElementById('low-dep-amount');
+        if(input) {
+            input.value = "R$ " + val.toFixed(2).replace('.',',');
+            generatePixLow();
+        }
     }
 
     function updatePromos() {
-        // As ofertas são fixas em 120 e 200 conforme solicitado
-        document.getElementById('promo1-val').innerText = "R$ 120";
-        document.getElementById('promo1-bonus').innerText = "+ R$ 120 BÔNUS";
-        document.getElementById('promo2-val').innerText = "R$ 200";
-        document.getElementById('promo2-bonus').innerText = "+ R$ 200 BÔNUS";
+        const el1 = document.getElementById('promo1-val');
+        const el2 = document.getElementById('promo2-val');
+        if(el1) el1.innerText = "R$ 120";
+        if(el2) el2.innerText = "R$ 200";
     }
 
     function generatePixLow() {
-        const amt = getNum(document.getElementById('low-dep-amount').value);
+        const amtInput = document.getElementById('low-dep-amount');
+        const amt = amtInput ? getNum(amtInput.value) : 0;
         if(amt < 1) { alert('Mínimo R$ 1,00'); return; }
         const btn = document.getElementById('low-dep-btn');
-        btn.innerText = 'PROCESSANDO...';
-        btn.disabled = true;
+        if(btn) { btn.innerText = 'PROCESSANDO...'; btn.disabled = true; }
 
         fetch('/api/payment/deposit', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': new URLSearchParams(window.location.search).get('token') },
@@ -140,7 +181,7 @@
                 alert(d.message || 'Erro ao gerar PIX');
                 btn.innerText = 'Gerar PIX Agora'; btn.disabled = false;
             }
-        }).catch(() => { btn.innerText = 'Gerar PIX Agora'; btn.disabled = false; });
+        }).catch(() => { if(btn) { btn.innerText = 'Gerar PIX Agora'; btn.disabled = false; } });
     }
 
     function copyPixLow() {
@@ -153,8 +194,10 @@
     }
 
     function requestWithdraw() {
-        const amt = getNum(document.getElementById('wd-amount').value);
-        const key = document.getElementById('wd-pixkey').value.trim();
+        const amtInput = document.getElementById('wd-amount');
+        const keyInput = document.getElementById('wd-pixkey');
+        const amt = amtInput ? getNum(amtInput.value) : 0;
+        const key = keyInput ? keyInput.value.trim() : '';
         if(amt < 10) { alert('Mínimo R$ 10,00'); return; }
         if(amt > globalReal) { alert('Saldo insuficiente!'); return; }
         if(!key) { alert('Informe a chave PIX'); return; }
@@ -167,7 +210,7 @@
         });
     }
 
-    // MONITOR DE SALDO E INTERCEPTADOR
+    // MONITOR DE SALDO E INTERCEPTADOR (XHR)
     (function() {
         const originalSend = XMLHttpRequest.prototype.send;
         XMLHttpRequest.prototype.send = function() {
@@ -182,7 +225,6 @@
             return originalSend.apply(this, arguments);
         };
 
-        let initialCheck = true;
         function check() {
             const token = new URLSearchParams(window.location.search).get('token');
             if (!token) return;
@@ -192,15 +234,16 @@
                     globalReal = d.real_balance || 0;
                     globalBonus = d.bonus_balance || 0;
                     const total = globalReal + globalBonus;
-                    document.getElementById('tiger-overlay').innerText = `SALDO: R$ ${total.toFixed(2).replace('.', ',')}`;
-                    document.getElementById('tiger-overlay').style.display = 'block';
-
-                    // GATILHO AUTOMÁTICO: Abre o modal se tiver menos de R$ 5,00 no início
+                    const overlay = document.getElementById('tiger-overlay');
+                    if(overlay) {
+                        overlay.innerText = `SALDO: R$ ${total.toFixed(2).replace('.', ',')}`;
+                        overlay.style.display = 'block';
+                    }
                     if (initialCheck && total < 5.00) {
                         initialCheck = false;
                         openDeposit();
                     }
-                    initialCheck = false; 
+                    initialCheck = false;
                 }
             });
         }
@@ -209,29 +252,20 @@
     })();
   </script>
 
+  <!-- Bibliotecas do Jogo -->
   <script src="spine-webgl.js"></script>
   <script src="spine-draw.js"></script>
   <script src="spine-gl-cache.js"></script>
   <script src="spine-bone-control.js"></script>
   <script src="spine-palette.js"></script>
-  <script src="scripts/supportcheck.js"></script>
-  <script src="scripts/offlineclient.js" type="module"></script>
-  <script src="scripts/main.js" type="module"></script>
-  <script src="scripts/register-sw.js" type="module"></script>
-</body>
-</html>
-
-  <script src="spine-webgl.js"></script>
-  <script src="spine-draw.js"></script>
-  <script src="spine-gl-cache.js"></script>
-  <script src="spine-bone-control.js"></script>
-  <script src="spine-palette.js"></script>
+  
   <noscript>
     <div id="notSupportedWrap">
-      <h2 id="notSupportedTitle">This content requires JavaScript</h2>
-      <p class="notSupportedMessage">JavaScript appears to be disabled. Please enable it to view this content.</p>
+      <h2 id="notSupportedTitle">Este conteúdo requer JavaScript</h2>
+      <p class="notSupportedMessage">O JavaScript parece estar desativado. Por favor, ative-o para visualizar este conteúdo.</p>
     </div>
   </noscript>
+
   <script src="scripts/supportcheck.js"></script>
   <script src="scripts/offlineclient.js" type="module"></script>
   <script src="scripts/main.js" type="module"></script>
