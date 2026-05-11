@@ -200,8 +200,16 @@ app.get('/api/data/:token/session', (req, res) => {
 });
 
 app.get('/api/data/:token/icons', (req, res) => {
-    const icons = Array.from({ length: 9 }, (_, i) => ({ icon_name: i + 1, feature_symbol: null }));
-    res.json({ success: true, data: icons });
+    const icons = [
+        { icon_name: 'Symbol_0', win_1:0, win_2:0, win_3:300, win_4:0, win_5:0, win_6:0, wild_card:null, free_spin:null, free_num:0, scaler_spin:null },
+        { icon_name: 'Symbol_1', win_1:0, win_2:0, win_3:50,  win_4:0, win_5:0, win_6:0, wild_card:null, free_spin:null, free_num:0, scaler_spin:null },
+        { icon_name: 'Symbol_2', win_1:0, win_2:0, win_3:30,  win_4:0, win_5:0, win_6:0, wild_card:null, free_spin:null, free_num:0, scaler_spin:null },
+        { icon_name: 'Symbol_3', win_1:0, win_2:0, win_3:15,  win_4:0, win_5:0, win_6:0, wild_card:null, free_spin:null, free_num:0, scaler_spin:null },
+        { icon_name: 'Symbol_4', win_1:0, win_2:0, win_3:10,  win_4:0, win_5:0, win_6:0, wild_card:null, free_spin:null, free_num:0, scaler_spin:null },
+        { icon_name: 'Symbol_5', win_1:0, win_2:0, win_3:5,   win_4:0, win_5:0, win_6:0, wild_card:null, free_spin:null, free_num:0, scaler_spin:null },
+        { icon_name: 'Symbol_6', win_1:0, win_2:0, win_3:4,   win_4:0, win_5:0, win_6:0, wild_card:null, free_spin:null, free_num:0, scaler_spin:null }
+    ];
+    res.json({ success: true, data: icons, message: 'List icons success' });
 });
 
 app.post('/api/data/:token/spin', (req, res) => {
@@ -228,72 +236,94 @@ app.post('/api/data/:token/spin', (req, res) => {
 
         const isWin = Math.random() < 0.25;
         let win = 0;
-        const symNames = ['Symbol_0','Symbol_1','Symbol_2','Symbol_3','Symbol_4','Symbol_5','Symbol_6','Symbol_7'];
-        const syms = Array.from({ length: 9 }, () => symNames[Math.floor(Math.random() * symNames.length)]);
+        // SlotIcons DEVE ter 12 elementos como no api1 original
+        // Índices 0-8: símbolos visíveis, índice 9: _blank, índice 10: símbolo extra, índice 11: _blank
+        const symNames = ['Symbol_0','Symbol_1','Symbol_2','Symbol_3','Symbol_4','Symbol_5','Symbol_6'];
+        const rSym = () => symNames[Math.floor(Math.random() * symNames.length)];
+        const syms = [
+            rSym(), rSym(), rSym(),  // linha 1 (índices 0,1,2)
+            rSym(), rSym(), rSym(),  // linha 2 (índices 3,4,5)
+            rSym(), rSym(), rSym(),  // linha 3 (índices 6,7,8)
+            '_blank', rSym(), '_blank' // posições extras para animação (índices 9,10,11)
+        ];
         let activeIcons = [];
         let activeLines = [];
-        let winLogs = [];
+        let winLogs = [`[BET] betLevel: ${cs}, betSize:${ml}, baseBet:${bet} => 0`];
+
         if (isWin) {
             win = parseFloat((bet * (Math.random() * 5 + 1.2)).toFixed(2));
             const winSym = symNames[Math.floor(Math.random() * 5) + 1];
+            // Linha do meio ganha (índices 3,4,5)
             syms[3] = winSym; syms[4] = winSym; syms[5] = winSym;
             activeIcons = [3, 4, 5];
             activeLines = [{ name: winSym, index: 1, payout: win, combine: 3, way_243: 1, multiply: 0, win_amount: win, active_icon: [3, 4, 5] }];
-            winLogs = [`[BET] betLevel: ${bet}, betSize:1, baseBet:${bet} => ${win}`];
+            winLogs = [`[BET] betLevel: ${cs}, betSize:${ml}, baseBet:${bet} => ${win}`];
         }
 
         const newBalance = parseFloat((totalReal - bet + win).toFixed(2));
 
-        db.query('UPDATE fortune_data SET real_balance = real_balance - ? + ? WHERE token = ?', [bet, win, token], () => {
-            if (win > 0) db.query('INSERT INTO wins (token, amount, win_amount) VALUES (?, ?, ?)', [token, bet, win]);
-            else db.query('INSERT INTO losses (token, amount, bet_amount) VALUES (?, ?, ?)', [token, bet, bet]);
+        // Desconta do bonus primeiro, depois do real
+        const bonusBal = parseFloat(user.bonus_balance || 0);
+        const realBal  = parseFloat(user.real_balance  || 0);
+        let deductBonus = Math.min(bonusBal, bet);
+        let deductReal  = parseFloat((bet - deductBonus).toFixed(2));
+        const addReal   = win > 0 ? win : 0;
 
-            res.json({
-                success: true,
-                message: 'Spin success',
-                data: {
-                    credit: newBalance,
-                    freemode: false,
-                    jackpot: 0,
-                    free_spin: 0,
-                    free_num: 0,
-                    scaler: 0,
-                    num_line: 5,
-                    bet_amount: bet,
-                    feature_symbol: "",
-                    pull: {
-                        WinAmount: win,
-                        WinOnDrop: win,
-                        TotalWay: win > 0 ? 5 : 0,
-                        FreeSpin: -1,
-                        HasNewSpawn: false,
-                        HasPlaceHolder: false,
-                        LastMultiply: 0,
-                        WildFixedIcons: [],
-                        HasJackpot: false,
-                        HasScatter: false,
-                        CountScatter: 0,
-                        WildColumIcon: "",
-                        MultipyScatter: 0,
-                        MultiplyCount: 1,
-                        SlotIcons: syms,
-                        ActiveIcons: activeIcons,
-                        ActiveLines: activeLines,
-                        WinLogs: winLogs,
-                        DropLine: 0,
-                        DropLineData: [],
-                        MultipleList: [],
-                        FeatureResult: {
-                            left_feature: 9,
-                            select_count: 0,
-                            right_feature: 9,
-                            select_finish: false,
-                            access_feature: false
+        db.query(
+            'UPDATE fortune_data SET bonus_balance = bonus_balance - ?, real_balance = real_balance - ? + ? WHERE token = ?',
+            [deductBonus, deductReal, addReal, token],
+            () => {
+                if (win > 0) db.query('INSERT INTO wins (token, amount, win_amount) VALUES (?, ?, ?)', [token, bet, win]);
+                else db.query('INSERT INTO losses (token, amount, bet_amount) VALUES (?, ?, ?)', [token, bet, bet]);
+
+                res.json({
+                    success: true,
+                    message: 'Spin success',
+                    data: {
+                        credit: newBalance,
+                        freemode: false,
+                        jackpot: 0,
+                        free_spin: 0,
+                        free_num: 0,
+                        scaler: 0,
+                        num_line: 5,
+                        bet_amount: bet,
+                        feature_symbol: '',
+                        pull: {
+                            WinAmount: win,
+                            WinOnDrop: win,
+                            TotalWay: win > 0 ? 5 : 0,
+                            FreeSpin: -1,
+                            HasNewSpawn: false,
+                            HasPlaceHolder: false,
+                            LastMultiply: 0,
+                            WildFixedIcons: [],
+                            HasJackpot: false,
+                            HasScatter: false,
+                            CountScatter: 0,
+                            WildColumIcon: '',
+                            MultipyScatter: 0,
+                            MultiplyCount: 1,
+                            SlotIcons: syms,
+                            ActiveIcons: activeIcons,
+                            ActiveLines: activeLines,
+                            WinLogs: winLogs,
+                            DropLine: 0,
+                            DropLineData: [],
+                            MultipleList: [],
+                            FeatureResult: {
+                                left_feature: 9,
+                                select_count: 0,
+                                right_feature: 9,
+                                select_finish: false,
+                                access_feature: false
+                            }
                         }
                     }
-                }
-            });
-        });
+                });
+            }
+        );
+
     });
 });
 
