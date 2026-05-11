@@ -159,7 +159,20 @@ function formatSessionData(sessionData) {
 app.get('/api/data/:token/session', (req, res) => {
     const token = req.params.token;
     db.query('SELECT * FROM fortune_data WHERE token = ?', [token], (err, results) => {
-        if (err || results.length === 0) return res.status(200).json({ success: false });
+        if (err) return res.status(200).json({ success: false });
+        
+        if (!results || results.length === 0) {
+            if (token && token.startsWith('guest_')) {
+                const guestName = 'Convidado_' + token.split('_')[1];
+                db.query('INSERT INTO fortune_data (token, fullName, user_name, real_balance, bonus_balance, credit) VALUES (?, ?, ?, ?, ?, ?)', 
+                    [token, guestName, guestName, 0, 50.0, 50.0], () => {
+                    res.json({ success: true, data: formatSessionData({ token, credit: 50.0, real_balance: 0, bonus_balance: 50.0, fullName: guestName }) });
+                });
+                return;
+            }
+            return res.status(200).json({ success: false, message: 'Sessão não encontrada' });
+        }
+        
         const data = formatSessionData(results[0]);
         res.json({ success: true, data });
     });
@@ -226,9 +239,24 @@ app.post('/api/data/:token/spin', (req, res) => {
                         WinAmount: winAmount,
                         WinOnDrop: winAmount,
                         TotalWay: winAmount > 0 ? 5 : 0,
+                        FreeSpin: 0,
+                        HasNewSpawn: false,
+                        HasPlaceHolder: false,
+                        LastMultiply: 0,
+                        WildFixedIcons: [],
+                        HasJackpot: false,
+                        HasScatter: false,
+                        CountScatter: 0,
+                        MultipyScatter: 0,
+                        MultiplyCount: 0,
                         SlotIcons: syms,
                         ActiveIcons: winAmount > 0 ? [3, 4, 5] : [],
-                        ActiveLines: winAmount > 0 ? [{ index: 1, active_icon: [3, 4, 5] }] : []
+                        ActiveLines: winAmount > 0 ? [{ index: 1, active_icon: [3, 4, 5] }] : [],
+                        WinLogs: [],
+                        DropLine: 0,
+                        DropLineData: [],
+                        MultipleList: [],
+                        FeatureResult: null
                     }
                 }
             });
