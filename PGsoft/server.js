@@ -30,22 +30,23 @@ const db = mysql.createPool({
 
 function formatSessionData(s) {
     if (!s) return {};
-    const totalReal = (s.real_balance || 0) + (s.bonus_balance || 0);
-    const cents = Math.floor(totalReal * 100);
+    const totalReal = parseFloat(s.real_balance || 0) + parseFloat(s.bonus_balance || 0);
     return {
         ...s,
-        bet_size_list: [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000], // Em centavos (0.10 a 100.00)
+        // Apostas em Reais - valores que o motor exibe na HUD
+        bet_size_list: [0.5, 1, 2, 3, 5, 10, 20, 50, 100, 200],
         multiple_list: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         currency_prefix: "R$ ",
         currency_decimal: ",",
         currency_thousand: ".",
-        bet_amount: 10,
+        bet_amount: 1,
         credit_line: 1,
         num_line: 5,
-        credit: cents,
-        balance: cents,
-        real_balance: s.real_balance,
-        bonus_balance: s.bonus_balance
+        // Saldo em Reais (decimal) - o motor exibe com currency_decimal
+        credit: parseFloat(totalReal.toFixed(2)),
+        balance: parseFloat(totalReal.toFixed(2)),
+        real_balance: parseFloat((s.real_balance || 0).toFixed(2)),
+        bonus_balance: parseFloat((s.bonus_balance || 0).toFixed(2))
     };
 }
 
@@ -93,47 +94,46 @@ app.post('/api/data/:token/spin', (req, res) => {
         const raw = JSON.stringify(req.body);
         const mCs = raw.match(/cs=([\d\.]+)/);
         const mMl = raw.match(/ml=(\d+)/);
-        cs = mCs ? parseFloat(mCs[1]) : 10;
+        cs = mCs ? parseFloat(mCs[1]) : 1;
         ml = mMl ? parseInt(mMl[1]) : 1;
     }
-    // No motor, cs e ml vêm em centavos se a lista for em centavos
-    const betCents = parseFloat(cs) * parseInt(ml) * 5;
-    const betReal = betCents / 100;
+    // cs e ml em Reais, bet = cs * ml * 5 linhas
+    const bet = parseFloat((parseFloat(cs) * parseInt(ml) * 5).toFixed(2));
 
     db.query('SELECT * FROM fortune_data WHERE token = ?', [token], (err, results) => {
         if (err || results.length === 0) return res.json({ success: false, message: 'Sessão expirada' });
         const user = results[0];
-        const totalReal = user.real_balance + user.bonus_balance;
-        if (totalReal < betReal) return res.json({ success: false, message: 'Saldo insuficiente' });
+        const totalReal = parseFloat((parseFloat(user.real_balance || 0) + parseFloat(user.bonus_balance || 0)).toFixed(2));
+        if (totalReal < bet) return res.json({ success: false, message: 'Saldo insuficiente' });
 
         const isWin = Math.random() < 0.25;
-        let winReal = 0, syms = [];
+        let win = 0, syms = [];
         for(let i=0; i<9; i++) syms.push('Symbol_' + Math.floor(Math.random() * 8 + 1));
         if (isWin) {
-            winReal = parseFloat((betReal * (Math.random() * 5 + 1.2)).toFixed(2));
+            win = parseFloat((bet * (Math.random() * 5 + 1.2)).toFixed(2));
             const s = 'Symbol_' + Math.floor(Math.random() * 7 + 1);
             syms[3] = s; syms[4] = s; syms[5] = s;
         }
 
-        const newReal = totalReal - betReal + winReal;
-        db.query('UPDATE fortune_data SET real_balance = real_balance - ? + ? WHERE token = ?', [betReal, winReal, token], () => {
-            if (winReal > 0) db.query('INSERT INTO wins (token, amount, win_amount) VALUES (?, ?, ?)', [token, betReal, winReal]);
-            else db.query('INSERT INTO losses (token, amount, bet_amount) VALUES (?, ?, ?)', [token, betReal, betReal]);
+        const newBalance = parseFloat((totalReal - bet + win).toFixed(2));
 
-            const centsNow = Math.floor(newReal * 100);
+        db.query('UPDATE fortune_data SET real_balance = real_balance - ? + ? WHERE token = ?', [bet, win, token], () => {
+            if (win > 0) db.query('INSERT INTO wins (token, amount, win_amount) VALUES (?, ?, ?)', [token, bet, win]);
+            else db.query('INSERT INTO losses (token, amount, bet_amount) VALUES (?, ?, ?)', [token, bet, bet]);
+
             res.json({
                 success: true, message: 'OK',
                 data: {
-                    credit: centsNow,
-                    balance: centsNow,
-                    bet_amount: betCents,
+                    credit: newBalance,
+                    balance: newBalance,
+                    bet_amount: bet,
                     pull: {
-                        WinAmount: Math.floor(winReal * 100), WinOnDrop: Math.floor(winReal * 100), TotalWay: winReal > 0 ? 5 : 0,
+                        WinAmount: win, WinOnDrop: win, TotalWay: win > 0 ? 5 : 0,
                         FreeSpin: 0, HasNewSpawn: false, HasPlaceHolder: false, LastMultiply: 0,
                         WildFixedIcons: [], HasJackpot: false, HasScatter: false, CountScatter: 0,
                         MultipyScatter: 0, MultiplyCount: 0, SlotIcons: syms,
-                        ActiveIcons: winReal > 0 ? [3, 4, 5] : [],
-                        ActiveLines: winReal > 0 ? [{ index: 1, active_icon: [3, 4, 5] }] : [],
+                        ActiveIcons: win > 0 ? [3, 4, 5] : [],
+                        ActiveLines: win > 0 ? [{ index: 1, active_icon: [3, 4, 5] }] : [],
                         WinLogs: [], DropLine: 0, DropLineData: [], MultipleList: [], FeatureResult: null,
                         HasFreeSpin: false, HasRespin: false, IsFeature: false, NextStep: "Spin"
                     }
