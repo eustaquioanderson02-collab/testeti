@@ -176,9 +176,10 @@ function formatSessionData(s) {
         multipy: 0,
         currency_prefix: "R$ ",
         currency_suffix: "",
-        currency_thousand: ".",
         currency_decimal: ",",
-        bet_size_list: ["0.2", "2", "20", "100"],
+        bet_size_list: ["0.2", "0.5", "1", "2", "5", "10", "20", "50", "100"],
+        bet_level_list: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        bet_amount: 1.0,
         previous_session: false,
         game_state: "",
         feature_symbol: "",
@@ -287,22 +288,16 @@ app.get('/api/data/:token/icons', (req, res) => {
 
 app.post('/api/data/:token/spin', (req, res) => {
     const token = req.params.token;
-    // Log para diagnóstico — mostra o que o motor C3 envia
-    console.log('[SPIN BODY]', JSON.stringify(req.body));
-
-    let cs = parseFloat(req.body.cs) || 0.2;
-    let ml = parseInt(req.body.ml)  || 1;
-
-    // Log completo para diagnóstico nos logs do Vercel
     const allParams = { ...req.query, ...req.body };
     console.log('[SPIN] token:', token, '| params:', JSON.stringify(allParams));
 
     // Tenta todos os possíveis nomes de campo que o motor C3/PGsoft pode enviar
     const rawCs = allParams.cs        ?? allParams.betLevel  ?? allParams.bet_size ??
-                  allParams.coinSize  ?? allParams.coin_size ?? allParams.size      ?? null;
+                  allParams.coinSize  ?? allParams.coin_size ?? allParams.size     ?? 
+                  allParams.base_bet  ?? null;
     const rawMl = allParams.ml        ?? allParams.betSize   ?? allParams.bet_level ??
-                  allParams.multiplier ?? allParams.level    ?? allParams.multi      ?? null;
-    const rawBet = allParams.bet      ?? allParams.betAmount ?? allParams.total_bet  ??
+                  allParams.multiplier ?? allParams.level    ?? allParams.multi    ?? null;
+    const rawBet = allParams.bet      ?? allParams.betAmount ?? allParams.total_bet ??
                    allParams.amount   ?? null;
 
     let cs, ml, bet;
