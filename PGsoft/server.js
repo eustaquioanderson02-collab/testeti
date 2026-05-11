@@ -281,34 +281,26 @@ function getRandomNumber(min, max) {
 }
 
 function formatSessionData(sessionData) {
-    // Parse ou default das opções de aposta (Bet Sizes) para a tela não ficar vazia
-    if (typeof sessionData.multiple_list === 'string' && sessionData.multiple_list.length > 0) {
-        try {
-            sessionData.multiple_list = JSON.parse(sessionData.multiple_list);
-        } catch(e) {
-            sessionData.multiple_list = [0.08, 0.80, 8.00];
+    if (!sessionData) return {};
+    try {
+        // Bet Sizes Default para evitar tela vazia
+        sessionData.bet_size_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+        sessionData.multiple_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        
+        // Moeda
+        sessionData.currency_prefix = "R$ ";
+        sessionData.currency_decimal = ",";
+        sessionData.currency_thousand = ".";
+        
+        sessionData.bet_amount = sessionData.bet_amount || 1.00;
+        sessionData.credit_line = sessionData.credit_line || 1;
+        sessionData.num_line = sessionData.num_line || 5;
+        
+        if (typeof sessionData.feature === 'string' && sessionData.feature.length > 0) {
+            try { sessionData.feature = JSON.parse(sessionData.feature); } catch(e) { sessionData.feature = null; }
         }
-    } else {
-        sessionData.multiple_list = [0.08, 0.80, 8.00];
-    }
-    
-    // O jogo espera um bet_size_list, então vamos injetar
-    sessionData.bet_size_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
-    sessionData.multiple_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; // Bet Levels
-    
-    // Configuração de Moeda Brasileira (R$)
-    sessionData.currency_prefix = "R$ ";
-    sessionData.currency_decimal = ",";
-    sessionData.currency_thousand = ".";
-    
-    // Garante que o valor da aposta inicial bata com a lista para não quebrar a tela de Bet Amount
-    sessionData.bet_amount = 1.00;  // Bet Size inicial
-    sessionData.credit_line = 1;    // Bet Level inicial
-    sessionData.num_line = 5;       // Base Bet Lines
-    
-    // Parse feature se for string
-    if (typeof sessionData.feature === 'string' && sessionData.feature.length > 0) {
-        try { sessionData.feature = JSON.parse(sessionData.feature); } catch(e) {}
+    } catch (err) {
+        console.error('Erro na formatação:', err);
     }
     return sessionData;
 }
@@ -319,44 +311,24 @@ app.get('/api/data/:token/session', (req, res) => {
 
   db.query(query, [token], (err, results) => {
     if (err) {
-      console.error('Erro ao buscar dados da sessão:', err);
-      return res.status(500).json({ success: false, message: 'Erro no Banco: ' + err.message });
+      console.error('Erro SQL Session:', err);
+      return res.status(200).json({ success: false, message: 'Erro de Banco' });
     }
 
     if (!results || results.length === 0) {
+      // Se não achar, tenta criar convidado ou retorna erro amigável (nunca 500)
       if (token && token.startsWith('guest_')) {
-          console.log('Criando conta de convidado para:', token);
-          const insertGuest = `INSERT INTO fortune_data (token, user_name, real_balance, bonus_balance, credit, bet_amount, num_line, line_num) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-          db.query(insertGuest, [token, 'Convidado', 0, 25.00, 25.00, 2, 5, 5], (insErr) => {
-              if (insErr) {
-                  console.error('Erro ao criar convidado:', insErr);
-                  return res.status(500).json(new ErrorResponse('Erro ao criar convidado.'));
-              }
-              const guestData = {
-                  token: token,
-                  user_name: 'Convidado',
-                  real_balance: 0,
-                  bonus_balance: 25.00,
-                  credit: 25.00,
-                  bet_amount: 2,
-                  num_line: 5,
-                  line_num: 5
-              };
-              return res.json(new SuccessResponse(formatSessionData(guestData), 'Sessão convidado criada'));
+          const ins = `INSERT INTO fortune_data (token, user_name, real_balance, bonus_balance, credit) VALUES (?, ?, ?, ?, ?)`;
+          db.query(ins, [token, 'Guest', 0, 0, 0], () => {
+              res.json(new SuccessResponse(formatSessionData({ token, credit: 0, real_balance: 0, bonus_balance: 0 }), 'Guest created'));
           });
           return;
       }
-      const errorResponse = new ErrorResponse('Sessão não encontrada.');
-      return res.status(404).json(errorResponse);
+      return res.status(200).json({ success: false, message: 'Sessão não encontrada' });
     }
 
-    try {
-        const sessionData = formatSessionData(results[0]);
-        res.json(new SuccessResponse(sessionData, 'Dados da sessão carregados com sucesso'));
-    } catch (e) {
-        console.error('Erro ao formatar sessão:', e);
-        res.status(500).json({ success: false, message: 'Erro ao formatar dados: ' + e.message });
-    }
+    const data = formatSessionData(results[0]);
+    res.json(new SuccessResponse(data, 'OK'));
   });
 });
 
@@ -790,7 +762,7 @@ app.post('/api/payment/deposit', async (req, res) => {
       }
     } catch (err) {
       console.error('Erro SigiloPay Depósito:', err.response ? err.response.data : err.message);
-      res.status(500).json({ success: false, message: 'Erro ao gerar PIX. Verifique se seu CPF e dados estão corretos no cadastro.' });
+      res.status(200).json({ success: false, message: 'Erro ao gerar PIX. Tente novamente em instantes.' });
     }
   });
 });

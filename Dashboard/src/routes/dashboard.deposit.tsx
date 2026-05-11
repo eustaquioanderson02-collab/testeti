@@ -1,12 +1,11 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/deposit")({
-  head: () => ({ meta: [{ title: "Recarregar Saldo | Fortune Tiger" }] }),
+  head: () => ({ meta: [{ title: "Depósito Premium | Fortune Tiger" }] }),
   component: Deposit,
 });
 
@@ -36,7 +35,7 @@ function Deposit() {
         toast.error(res.message || "Erro ao gerar PIX");
       }
     } catch (e) {
-      toast.error("Erro na conexão com o servidor");
+      toast.error("Erro na conexão");
     } finally {
       setLoading(false);
     }
@@ -54,94 +53,83 @@ function Deposit() {
   const promo2 = 200;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-xl p-4 animate-in fade-in duration-500">
-      <div className="w-full max-w-[400px] bg-gradient-to-br from-[#1a1410] to-[#2a1f18] rounded-[40px] p-8 relative border border-yellow-500/30 shadow-[0_30px_100px_rgba(0,0,0,1)] border-t-4 border-t-yellow-500 overflow-hidden">
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <div className="w-full max-w-[400px] bg-gradient-to-br from-[#1a1410] to-[#2a1f18] rounded-[35px] p-8 relative border border-yellow-500/30 shadow-[0_30px_100px_rgba(0,0,0,1)] border-t-4 border-t-yellow-500">
         
-        {/* Glow de fundo */}
-        <div className="absolute -top-24 -left-24 w-48 h-48 bg-yellow-500/10 blur-[80px] rounded-full" />
+        <Link to="/dashboard" className="absolute top-6 right-6 text-white/30 hover:text-white transition-all">✕ Fechar</Link>
         
-        <Link to="/dashboard" className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center bg-black/40 rounded-full text-white/50 hover:text-yellow-500 transition-all z-10">✕</Link>
-        
-        <div className="text-center mb-8 relative">
-            <div className="text-6xl mb-4 drop-shadow-[0_0_15px_rgba(234,179,8,0.4)]">🐯</div>
-            <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 uppercase tracking-tighter">Recarregar</h2>
-            <p className="text-[10px] text-white/40 uppercase tracking-[0.2em] mt-1 font-bold">
-              Saldo: R$ {(user.real_balance + user.bonus_balance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+        <div className="text-center mb-6">
+            <div className="text-6xl mb-2 drop-shadow-lg">🐯</div>
+            <h2 className="text-2xl font-black text-yellow-500 uppercase">Recarregar Saldo</h2>
+            <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold mt-1">
+              Saldo Atual: R$ {(user.real_balance + user.bonus_balance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
         </div>
 
         {!generated ? (
-          <div className="space-y-6 relative">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-3">
               <button 
                 onClick={() => { setAmount(maskCurrency("12000")); generate(promo1); }}
-                className="group p-5 rounded-3xl bg-yellow-500/5 border border-yellow-500/20 text-center hover:bg-yellow-500/10 transition-all active:scale-95"
+                className="p-4 rounded-2xl bg-yellow-500/5 border border-yellow-500/20 text-center hover:bg-yellow-500/10 transition-all active:scale-95"
               >
-                <div className="bg-yellow-500/20 text-yellow-500 text-[9px] font-black py-1 px-2 rounded-full inline-block mb-2">OFERTA 1</div>
-                <p className="text-2xl font-black text-white">R$ {promo1}</p>
-                <p className="text-[10px] text-yellow-500 font-bold mt-1">+ R$ {promo1} BÔNUS</p>
+                <div className="text-xl font-black text-white">R$ {promo1}</div>
+                <div className="text-[9px] text-yellow-500 font-bold mt-1">+ R$ {promo1} BÔNUS</div>
               </button>
               
               <button 
                 onClick={() => { setAmount(maskCurrency("20000")); generate(promo2); }}
-                className="group p-5 rounded-3xl bg-yellow-500/5 border border-yellow-500/20 text-center hover:bg-yellow-500/10 transition-all active:scale-95"
+                className="p-4 rounded-2xl bg-yellow-500/5 border border-yellow-500/20 text-center hover:bg-yellow-500/10 transition-all active:scale-95"
               >
-                <div className="bg-yellow-500/20 text-yellow-500 text-[9px] font-black py-1 px-2 rounded-full inline-block mb-2">OFERTA 2</div>
-                <p className="text-2xl font-black text-white">R$ {promo2}</p>
-                <p className="text-[10px] text-yellow-500 font-bold mt-1">+ R$ {promo2} BÔNUS</p>
+                <div className="text-xl font-black text-white">R$ {promo2}</div>
+                <div className="text-[9px] text-yellow-500 font-bold mt-1">+ R$ {promo2} BÔNUS</div>
               </button>
             </div>
 
             <div className="space-y-2">
               <label className="text-[9px] uppercase tracking-widest text-yellow-500/60 font-black ml-1">Valor Personalizado</label>
-              <div className="relative">
-                <input 
-                  type="text" 
-                  value={amount} 
-                  onChange={e => setAmount(maskCurrency(e.target.value))} 
-                  className="w-full text-center text-3xl font-black h-20 bg-black/60 border-2 border-yellow-500/20 rounded-3xl focus:border-yellow-500 transition-all outline-none text-white shadow-inner"
-                  placeholder="R$ 0,00"
-                />
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-500 rounded-l-full" />
-              </div>
+              <input 
+                type="text" 
+                value={amount} 
+                onChange={e => setAmount(maskCurrency(e.target.value))} 
+                className="w-full text-center text-3xl font-black h-16 bg-black/60 border-2 border-yellow-500/20 rounded-2xl focus:border-yellow-500 transition-all outline-none text-white shadow-inner"
+              />
             </div>
 
             <Button 
                 onClick={() => generate()} 
                 disabled={loading}
-                className="w-full h-20 text-xl font-black rounded-3xl bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:brightness-110 active:scale-95 transition-all shadow-[0_15px_30px_rgba(234,179,8,0.2)] uppercase"
+                className="w-full h-16 text-lg font-black rounded-2xl bg-gradient-to-r from-yellow-500 to-orange-600 text-black hover:brightness-110 active:scale-95 transition-all shadow-lg uppercase"
             >
               {loading ? "Processando..." : "Gerar PIX Agora"}
             </Button>
             
-            <p className="text-[9px] text-center text-white/30 uppercase tracking-[0.2em] font-bold">Pagamento Instantâneo via SigiloPay</p>
+            <p className="text-[9px] text-center text-white/30 uppercase tracking-widest font-bold">Seguro via SigiloPay</p>
           </div>
         ) : (
           <div className="space-y-6 text-center animate-in zoom-in-95 duration-500">
-            <div className="inline-block p-4 rounded-[35px] bg-white shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-              <img src={generated.qr} alt="QR Code PIX" className="w-[200px] h-[200px] rounded-2xl" />
+            <div className="inline-block p-4 rounded-[30px] bg-white shadow-xl">
+              <img src={generated.qr} alt="QR Code PIX" className="w-[180px] h-[180px] rounded-xl" />
             </div>
             
             <div className="space-y-1">
-                <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Total a Pagar</p>
-                <p className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 tracking-tighter">
-                  {amount}
-                </p>
+                <p className="text-[10px] text-white/40 uppercase font-bold">Valor Total</p>
+                <p className="text-4xl font-black text-white">{amount}</p>
             </div>
 
             <div className="space-y-3">
               <Button 
                 onClick={() => { navigator.clipboard.writeText(generated.code); toast.success("Código PIX Copiado!"); }}
-                className="w-full h-16 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-yellow-500 font-black text-lg transition-all active:scale-95"
+                className="w-full h-14 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-yellow-500 font-black text-md transition-all"
               >
                 COPIAR CÓDIGO PIX
               </Button>
               <Button 
                 variant="ghost" 
                 onClick={() => setGenerated(null)}
-                className="w-full text-white/40 hover:text-white uppercase text-xs font-bold tracking-widest"
+                className="w-full text-white/40 hover:text-white uppercase text-[10px] font-bold tracking-widest"
               >
-                Voltar e Alterar Valor
+                Voltar
               </Button>
             </div>
           </div>

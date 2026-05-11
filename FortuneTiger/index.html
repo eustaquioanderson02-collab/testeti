@@ -2,13 +2,8 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Fortune_Tiger</title>
+  <title>Fortune Tiger - Premium Gold</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
-  <meta name="generator" content="Scirra Construct">
-  <link rel="manifest" href="appmanifest.json">
-  <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128.png">
-  <link rel="apple-touch-icon" sizes="256x256" href="icons/icon-256.png">
-  <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
   <link rel="icon" type="image/png" href="icons/icon-512.png">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="main.css">
@@ -16,84 +11,95 @@
   <link rel="stylesheet" href="history-detail.css">
   <link rel="stylesheet" href="gamerule.css">
   <script>
-    // DEFINE FUNÇÕES GLOBAIS NO TOPO PARA EVITAR REFERENCE ERROR
+    window.globalReal = 0;
+    window.globalBonus = 0;
+    let initialCheck = true;
+
+    // FUNÇÕES DE ABERTURA - SOMENTE MODAL PREMIUM
     window.openDepositModal = function() {
-        const modal = document.getElementById('tiger-premium-modal');
+        const modal = document.getElementById('tiger-premium-gold-modal');
         if(modal) {
             modal.style.display = 'flex';
-            document.getElementById('current-bal-display').innerText = 'Saldo Atual: R$ ' + (window.globalReal + window.globalBonus).toFixed(2).replace('.',',');
+            const total = (window.globalReal || 0) + (window.globalBonus || 0);
+            document.getElementById('current-bal-display').innerText = 'Saldo Atual: R$ ' + total.toFixed(2).replace('.',',');
         }
     };
+
     window.openWithdrawModal = function() {
         const modal = document.getElementById('tiger-withdraw-modal');
         if(modal) {
             modal.style.display = 'flex';
-            document.getElementById('wd-real-balance').innerText = 'R$ ' + window.globalReal.toFixed(2).replace('.',',');
+            document.getElementById('wd-real-balance').innerText = 'R$ ' + (window.globalReal || 0).toFixed(2).replace('.',',');
         }
     };
+
     window.closeModals = function() {
-        document.querySelectorAll('[id*="modal"]').forEach(el => el.style.display = 'none');
+        document.getElementById('tiger-premium-gold-modal').style.display = 'none';
+        document.getElementById('tiger-withdraw-modal').style.display = 'none';
     };
-    window.globalReal = 0;
-    window.globalBonus = 0;
   </script>
 </head>
 <body style="background: #000; color: #fff; margin: 0; padding: 0; overflow: hidden;"> 
   
-  <div id="tiger-overlay" style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #ffcc00; padding: 10px 25px; border-radius: 30px; z-index: 9999; font-family: 'Arial', sans-serif; font-weight: bold; border: 1px solid #ffcc0066; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); font-size: 14px; pointer-events: none;">
-    SALDO: R$ 0,00
+  <!-- Overlay de Saldo -->
+  <div id="tiger-overlay" style="position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: linear-gradient(to bottom, #222, #000); color: #ffcc00; padding: 8px 20px; border-radius: 20px; z-index: 9999; font-family: sans-serif; font-weight: 900; border: 1px solid #ffcc0066; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.8); font-size: 13px;">
+    CARREGANDO...
   </div>
 
-  <div style="position: fixed; right: 15px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 15px; z-index: 9998;">
-    <button onclick="openDepositModal()" style="background: rgba(20,20,20,0.8); border: 2px solid #ffcc00; color: #ffcc00; padding: 12px; border-radius: 50%; width: 55px; height: 55px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px;">💰</button>
-    <button onclick="openWithdrawModal()" style="background: rgba(20,20,20,0.8); border: 2px solid #00ffcc; color: #00ffcc; padding: 12px; border-radius: 50%; width: 55px; height: 55px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px;">💸</button>
+  <!-- Botões de Ação -->
+  <div style="position: fixed; right: 15px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 12px; z-index: 9998;">
+    <button onclick="openDepositModal()" style="background: #111; border: 2px solid #ffcc00; color: #ffcc00; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; font-size: 22px; box-shadow: 0 0 10px rgba(255,204,0,0.2);">💰</button>
+    <button onclick="openWithdrawModal()" style="background: #111; border: 2px solid #00ffcc; color: #00ffcc; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; font-size: 22px; box-shadow: 0 0 10px rgba(0,255,204,0.2);">💸</button>
   </div>
 
-  <!-- MODAL PREMIUM (ESCONDIDO POR PADRÃO) -->
-  <div id="tiger-premium-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.96); z-index: 30000; display: none; align-items: center; justify-content: center; font-family: 'Arial', sans-serif; backdrop-filter: blur(15px);">
-      <div style="background: linear-gradient(145deg, #1a1410, #2a1f18); padding: 30px; border-radius: 35px; border: 1px solid #ffcc0044; width: 92%; max-width: 400px; text-align: center; border-top: 5px solid #ffcc00; color: #fff;">
-          <button onclick="closeModals()" style="position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.05); border: none; color: #fff; width: 35px; height: 35px; border-radius: 50%; cursor: pointer;">✖</button>
-          <div style="font-size: 55px; margin-bottom: 10px;">🐯</div>
-          <h2 style="color: #ffcc00; margin: 0; font-size: 26px; font-weight: 900; text-transform: uppercase;">Recarregar</h2>
-          <p id="current-bal-display" style="color: #888; font-size: 11px; margin-bottom: 25px;">Saldo Atual: R$ 0,00</p>
+  <!-- NOVO MODAL PREMIUM GOLD (O ÚNICO QUE EXISTE AGORA) -->
+  <div id="tiger-premium-gold-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.97); z-index: 40000; display: none; align-items: center; justify-content: center; font-family: Arial, sans-serif; backdrop-filter: blur(10px);">
+      <div style="background: linear-gradient(145deg, #1a1410, #2a1f18); padding: 25px; border-radius: 30px; border: 1px solid #ffcc0044; width: 90%; max-width: 380px; text-align: center; border-top: 4px solid #ffcc00; color: #fff; box-shadow: 0 20px 50px rgba(0,0,0,1);">
+          <button onclick="closeModals()" style="position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.05); border: none; color: #fff; width: 30px; height: 30px; border-radius: 50%; cursor: pointer;">✕</button>
+          <div style="font-size: 50px; margin-bottom: 5px;">🐯</div>
+          <h2 style="color: #ffcc00; margin: 0; font-size: 22px; font-weight: 900; text-transform: uppercase;">Recarregar Saldo</h2>
+          <p id="current-bal-display" style="color: #888; font-size: 11px; margin-bottom: 20px;">Saldo Atual: R$ 0,00</p>
+          
           <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-              <div onclick="window.selectPromo(1)" style="flex: 1; background: rgba(255,204,0,0.06); border: 1px solid #ffcc0022; border-radius: 20px; padding: 15px; cursor: pointer;">
-                  <div style="font-size: 20px; font-weight: 900;">R$ 120</div>
-                  <div style="font-size: 10px; color: #ffcc00;">+ BÔNUS</div>
+              <div onclick="window.selectPromo(1)" style="flex: 1; background: rgba(255,204,0,0.08); border: 1px solid #ffcc0033; border-radius: 15px; padding: 12px; cursor: pointer;">
+                  <div style="font-size: 18px; font-weight: 900;">R$ 120</div>
+                  <div style="font-size: 10px; color: #ffcc00; font-weight: bold;">+ R$ 120 BÔNUS</div>
               </div>
-              <div onclick="window.selectPromo(2)" style="flex: 1; background: rgba(255,204,0,0.06); border: 1px solid #ffcc0022; border-radius: 20px; padding: 15px; cursor: pointer;">
-                  <div style="font-size: 20px; font-weight: 900;">R$ 200</div>
-                  <div style="font-size: 10px; color: #ffcc00;">+ BÔNUS</div>
+              <div onclick="window.selectPromo(2)" style="flex: 1; background: rgba(255,204,0,0.08); border: 1px solid #ffcc0033; border-radius: 15px; padding: 12px; cursor: pointer;">
+                  <div style="font-size: 18px; font-weight: 900;">R$ 200</div>
+                  <div style="font-size: 10px; color: #ffcc00; font-weight: bold;">+ R$ 200 BÔNUS</div>
               </div>
           </div>
-          <input type="text" id="low-dep-amount" value="R$ 120,00" oninput="maskCurrency(this)" style="width: 100%; padding: 18px; border-radius: 18px; border: 2px solid #332; background: #000; color: #fff; font-size: 24px; text-align: center; outline: none; margin-bottom: 20px;">
-          <button id="low-dep-btn" onclick="generatePixLow()" style="background: linear-gradient(to right, #ffcc00, #ff8800); border: none; padding: 20px; width: 100%; border-radius: 22px; font-weight: 900; color: #000; cursor: pointer; font-size: 18px; text-transform: uppercase;">Gerar PIX Agora</button>
-          <div id="low-qr-container" style="display: none; margin-top: 20px;">
-              <img id="low-qr" style="width: 180px; height: 180px; background: #fff; padding: 10px; border-radius: 15px; display: block; margin: 0 auto 15px auto;" />
-              <button onclick="copyPixLow()" style="background: #222; border: 1px solid #ffcc00; padding: 12px; width: 100%; border-radius: 12px; color: #ffcc00; cursor: pointer;">COPIAR PIX</button>
+
+          <input type="text" id="low-dep-amount" value="R$ 120,00" oninput="maskCurrency(this)" style="width: 100%; padding: 15px; border-radius: 15px; border: 2px solid #332; background: #000; color: #fff; font-size: 22px; text-align: center; outline: none; margin-bottom: 15px;">
+          
+          <button id="low-dep-btn" onclick="generatePixLow()" style="background: linear-gradient(to right, #ffcc00, #ff8800); border: none; padding: 18px; width: 100%; border-radius: 20px; font-weight: 900; color: #000; cursor: pointer; font-size: 16px; text-transform: uppercase;">Gerar PIX Agora</button>
+
+          <div id="low-qr-container" style="display: none; margin-top: 20px; animate: fadeIn 0.5s;">
+              <div style="background: #fff; padding: 10px; border-radius: 15px; display: inline-block; margin-bottom: 15px;">
+                  <img id="low-qr" style="width: 160px; height: 160px; display: block;" />
+              </div>
+              <button onclick="copyPixLow()" style="background: #222; border: 1px solid #ffcc00; padding: 12px; width: 100%; border-radius: 12px; color: #ffcc00; cursor: pointer; font-weight: bold;">COPIAR CÓDIGO PIX</button>
           </div>
       </div>
   </div>
 
-  <!-- MODAL DE SAQUE -->
-  <div id="tiger-withdraw-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: none; align-items: center; justify-content: center; font-family: 'Arial', sans-serif;">
-      <div style="background: #1a1410; padding: 30px; border-radius: 20px; border: 1px solid #00ffcc44; width: 90%; max-width: 350px; text-align: center; color: #fff;">
-          <button onclick="closeModals()" style="position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: #aaa; font-size: 20px; cursor: pointer;">✖</button>
-          <h2 style="color: #00ffcc; margin-bottom: 10px;">Solicitar Saque</h2>
-          <div style="background: rgba(0,255,204,0.1); border-radius: 12px; padding: 15px; margin-bottom: 20px;">
-              <div id="wd-real-balance" style="font-size: 28px; color: #00ffcc; font-weight: bold;">R$ 0,00</div>
+  <!-- Modal de Saque -->
+  <div id="tiger-withdraw-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: none; align-items: center; justify-content: center; font-family: Arial, sans-serif; backdrop-filter: blur(5px);">
+      <div style="background: #1a1410; padding: 30px; border-radius: 25px; border: 1px solid #00ffcc44; width: 90%; max-width: 350px; text-align: center; color: #fff;">
+          <button onclick="closeModals()" style="position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: #aaa; font-size: 20px; cursor: pointer;">✕</button>
+          <h2 style="color: #00ffcc; margin-bottom: 10px; font-size: 20px;">Solicitar Saque</h2>
+          <div style="background: rgba(0,255,204,0.1); border-radius: 15px; padding: 20px; margin-bottom: 20px;">
+              <p style="font-size: 12px; color: #aaa; margin-bottom: 5px;">Saldo Disponível</p>
+              <div id="wd-real-balance" style="font-size: 32px; color: #00ffcc; font-weight: bold;">R$ 0,00</div>
           </div>
-          <input type="text" id="wd-amount" placeholder="Valor (R$)" oninput="maskCurrency(this)" style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #443; background: #000; color: #fff; margin-bottom: 15px; text-align: center;">
-          <input type="text" id="wd-pixkey" placeholder="Chave PIX" style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #443; background: #000; color: #fff; margin-bottom: 20px; text-align: center;">
-          <button onclick="requestWithdraw()" style="background: #00ffcc; border: none; padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; color: #000;">CONFIRMAR SAQUE</button>
+          <input type="text" id="wd-amount" placeholder="Valor (R$)" oninput="maskCurrency(this)" style="width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #443; background: #000; color: #fff; margin-bottom: 15px; text-align: center; outline: none;">
+          <input type="text" id="wd-pixkey" placeholder="Chave PIX" style="width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #443; background: #000; color: #fff; margin-bottom: 20px; text-align: center; outline: none;">
+          <button onclick="requestWithdraw()" style="background: #00ffcc; border: none; padding: 18px; width: 100%; border-radius: 15px; font-weight: bold; color: #000; cursor: pointer;">CONFIRMAR SAQUE</button>
       </div>
   </div>
 
   <script>
-    let initialCheck = true;
-
-    function openDeposit() { openDepositModal(); }
-
     function maskCurrency(input) {
         let value = input.value.replace(/\D/g, "");
         if(value === "") { input.value = ""; return; }
@@ -128,7 +134,8 @@
                 document.getElementById('low-qr-container').dataset.copy = d.copy_paste;
                 btn.style.display = 'none';
             } else {
-                alert(d.message); btn.innerText = 'Gerar PIX Agora'; btn.disabled = false;
+                alert(d.message || 'Erro ao gerar PIX');
+                btn.innerText = 'Gerar PIX Agora'; btn.disabled = false;
             }
         }).catch(() => { btn.innerText = 'Gerar PIX Agora'; btn.disabled = false; });
     }
@@ -151,7 +158,7 @@
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': new URLSearchParams(window.location.search).get('token') },
             body: JSON.stringify({ amount: amt, pixKey: key })
         }).then(r=>r.json()).then(d=>{
-            if(d.success) { alert('Solicitado!'); closeModals(); } else alert(d.message);
+            if(d.success) { alert('Saque solicitado!'); closeModals(); } else alert(d.message);
         });
     }
 
@@ -162,7 +169,7 @@
                 if (this.responseURL && this.responseURL.includes('/spin') && this.status === 200) {
                     try {
                         const data = JSON.parse(this.responseText);
-                        if (data.success === false) openDepositModal();
+                        if (data.success === false) window.openDepositModal();
                     } catch(e) {}
                 }
             });
@@ -173,7 +180,7 @@
             const token = new URLSearchParams(window.location.search).get('token');
             if (!token) return;
             fetch(`/api/data/${token}/session`).then(r => r.json()).then(data => {
-                if (data.success) {
+                if (data.success && data.data) {
                     const d = data.data;
                     window.globalReal = d.real_balance || 0;
                     window.globalBonus = d.bonus_balance || 0;
@@ -185,14 +192,14 @@
                     }
                     if (initialCheck && total < 5.00) {
                         initialCheck = false;
-                        openDepositModal();
+                        window.openDepositModal();
                     }
                     initialCheck = false;
                 }
             });
         }
         setTimeout(check, 1000);
-        setInterval(check, 10000);
+        setInterval(check, 8000);
     })();
   </script>
 
