@@ -845,7 +845,7 @@ app.get('/api/payment/pending-deposits', (req, res) => {
     SELECT * FROM deposits 
     WHERE token = ? 
     AND status = 'PENDING' 
-    AND created_at >= datetime('now', '-1 day') 
+    AND created_at >= NOW() - INTERVAL 1 DAY 
     ORDER BY created_at DESC 
     LIMIT 10
   `;
