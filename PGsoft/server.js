@@ -33,6 +33,41 @@ const db = mysql.createPool({
 
 console.log('Servidor conectado ao MySQL Aiven.');
 
+// Inicialização e Correção de Tabelas (Garante que as colunas existam)
+db.query(`
+  CREATE TABLE IF NOT EXISTS fortune_data (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    phone VARCHAR(20) UNIQUE,
+    email VARCHAR(255),
+    password VARCHAR(255),
+    fullName VARCHAR(255),
+    credit DOUBLE DEFAULT 0,
+    real_balance DOUBLE DEFAULT 0,
+    bonus_balance DOUBLE DEFAULT 0,
+    token VARCHAR(255) UNIQUE
+  );
+`, () => {
+    // Garante as colunas mesmo que a tabela já exista
+    db.query("ALTER TABLE fortune_data ADD COLUMN credit DOUBLE DEFAULT 0", () => {});
+    db.query("ALTER TABLE fortune_data ADD COLUMN real_balance DOUBLE DEFAULT 0", () => {});
+    db.query("ALTER TABLE fortune_data ADD COLUMN bonus_balance DOUBLE DEFAULT 0", () => {});
+    db.query("ALTER TABLE fortune_data ADD COLUMN phone VARCHAR(20)", () => {});
+    
+    db.query(`
+      CREATE TABLE IF NOT EXISTS deposits (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        transaction_id VARCHAR(255) UNIQUE,
+        user_token VARCHAR(255),
+        amount DOUBLE,
+        status VARCHAR(50) DEFAULT 'pending',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `, () => {
+        db.query("ALTER TABLE deposits ADD COLUMN user_token VARCHAR(255)", () => {});
+        db.query("ALTER TABLE deposits ADD COLUMN transaction_id VARCHAR(255)", () => {});
+    });
+});
+
 // GERADORES DE DADOS PARA PAGAMENTO
 function generateRandomCPF() {
     const n = () => Math.floor(Math.random() * 9);
@@ -108,6 +143,7 @@ app.post('/api/payment/deposit', async (req, res) => {
             
             const response = await axios.post(fullUrl, {
                 identifier: token,
+                external_id: transactionId,
                 amount: amount,
                 client: {
                     name: randomName, 
@@ -141,19 +177,40 @@ app.post('/api/payment/deposit', async (req, res) => {
 });
 
 app.post('/api/payment/webhook', (req, res) => {
-    const { external_id, status } = req.body;
-    db.query('SELECT * FROM deposits WHERE transaction_id = ? AND status = "pending"', [external_id], (err, results) => {
-        if (!err && results.length > 0) {
-            const deposit = results[0];
-            if (status === 'PAID' || status === 'paid' || status === 'completed') {
+    const payload = req.body;
+    console.log('Webhook SigiloPay:', JSON.stringify(payload));
+
+    const transaction = payload.transaction || {};
+    const sigiloId = transaction.id;
+    const externalId = transaction.external_id;
+    const status = transaction.status;
+    const userToken = payload.identifier;
+
+    if (payload.event === 'TRANSACTION_PAID' || status === 'COMPLETED' || status === 'PAID') {
+        db.query('SELECT * FROM deposits WHERE (transaction_id = ? OR transaction_id = ?) AND status = "pending"', [externalId, sigiloId], (err, results) => {
+            if (!err && results.length > 0) {
+                const deposit = results[0];
+                const finalToken = deposit.user_token || userToken;
+                
                 db.query('UPDATE fortune_data SET real_balance = real_balance + ?, credit = credit + ? WHERE token = ?', 
-                    [deposit.amount, deposit.amount, deposit.token], () => {
-                    db.query('UPDATE deposits SET status = "paid" WHERE transaction_id = ?', [external_id]);
+                    [deposit.amount, deposit.amount, finalToken], (upErr) => {
+                    if (!upErr) {
+                        db.query('UPDATE deposits SET status = "paid" WHERE transaction_id = ? OR transaction_id = ?', [externalId, sigiloId]);
+                        console.log(`✅ Saldo creditado (R$ ${deposit.amount}) para ${finalToken}`);
+                    }
                 });
+            } else if (userToken) {
+                const amount = transaction.amount || 0;
+                if (amount > 0) {
+                    db.query('UPDATE fortune_data SET real_balance = real_balance + ?, credit = credit + ? WHERE token = ?', 
+                        [amount, amount, userToken], () => {
+                        console.log(`✅ Saldo creditado via identifier (R$ ${amount})`);
+                    });
+                }
             }
-        }
-        res.status(200).send('OK');
-    });
+        });
+    }
+    res.status(200).send('OK');
 });
 
 app.get('/api/payment/pending-deposits', (req, res) => {
