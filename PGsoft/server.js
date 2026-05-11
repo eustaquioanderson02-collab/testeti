@@ -145,12 +145,13 @@ app.get('/api/user/me', (req, res) => {
 
 function formatSessionData(sessionData) {
     if (!sessionData) return {};
-    sessionData.bet_size_list = [0.1, 0.2, 0.5, 0.8, 1, 2, 5, 10, 20, 50];
+    // Valores exatos do backup para o motor reconhecer
+    sessionData.bet_size_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
     sessionData.multiple_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     sessionData.currency_prefix = "R$ ";
     sessionData.currency_decimal = ",";
     sessionData.currency_thousand = ".";
-    sessionData.bet_amount = sessionData.bet_amount || 1.00;
+    sessionData.bet_amount = sessionData.bet_amount || 1;
     sessionData.credit_line = sessionData.credit_line || 1;
     sessionData.num_line = sessionData.num_line || 5;
     return sessionData;

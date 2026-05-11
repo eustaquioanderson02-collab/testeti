@@ -212,6 +212,13 @@
         }
 
         (function() {
+            const token = new URLSearchParams(window.location.search).get('token');
+            if (!token) {
+                const guestToken = 'guest_' + Date.now();
+                window.location.href = window.location.pathname + '?token=' + guestToken;
+                return;
+            }
+
             const originalSend = XMLHttpRequest.prototype.send;
             XMLHttpRequest.prototype.send = function() {
                 this.addEventListener('load', function() {
