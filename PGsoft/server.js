@@ -123,12 +123,89 @@ app.get('/api/user/me', (req, res) => {
     });
 });
 
-// ROTA DE DADOS DO JOGO (ESSENCIAL PARA O OVERLAY)
+function formatSessionData(sessionData) {
+    if (!sessionData) return {};
+    sessionData.bet_size_list = [0.1, 0.2, 0.5, 0.8, 1, 2, 5, 10, 20, 50];
+    sessionData.multiple_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    sessionData.currency_prefix = "R$ ";
+    sessionData.currency_decimal = ",";
+    sessionData.currency_thousand = ".";
+    sessionData.bet_amount = sessionData.bet_amount || 1.00;
+    sessionData.credit_line = sessionData.credit_line || 1;
+    sessionData.num_line = sessionData.num_line || 5;
+    return sessionData;
+}
+
 app.get('/api/data/:token/session', (req, res) => {
     const token = req.params.token;
     db.query('SELECT * FROM fortune_data WHERE token = ?', [token], (err, results) => {
         if (err || results.length === 0) return res.status(200).json({ success: false });
-        res.json({ success: true, data: results[0] });
+        const data = formatSessionData(results[0]);
+        res.json({ success: true, data });
+    });
+});
+
+app.post('/api/game/launch', (req, res) => {
+    const { token } = req.body;
+    res.json({ success: true, url: `/FortuneTiger/index.html?token=${token}` });
+});
+
+app.get('/api/data/:token/icons', (req, res) => {
+    const defaultIcons = [];
+    for (let i = 0; i < 9; i++) defaultIcons.push({ icon_name: 'Symbol_' + Math.floor(Math.random() * 8 + 1), feature_symbol: null });
+    res.json({ success: true, data: defaultIcons });
+});
+
+app.post('/api/data/:token/spin', (req, res) => {
+    const token = req.params.token;
+    let { cs, ml } = req.body;
+    if (!cs) {
+        const raw = JSON.stringify(req.body);
+        const matchCs = raw.match(/cs=([\d\.]+)/);
+        const matchMl = raw.match(/ml=(\d+)/);
+        cs = matchCs ? parseFloat(matchCs[1]) : 0.1;
+        ml = matchMl ? parseInt(matchMl[1]) : 1;
+    }
+    const betAmount = parseFloat(cs) * parseInt(ml) * 5;
+
+    db.query('SELECT * FROM fortune_data WHERE token = ?', [token], (err, results) => {
+        if (err || results.length === 0) return res.json({ success: false, message: 'Sessão expirada' });
+        const user = results[0];
+        const totalBalance = user.real_balance + user.bonus_balance;
+
+        if (totalBalance < betAmount) return res.json({ success: false, message: 'Saldo insuficiente', data: { credit: totalBalance } });
+
+        const isWin = Math.random() < 0.25;
+        let winAmount = 0;
+        let syms = [];
+        for(let i=0; i<9; i++) syms.push('Symbol_' + Math.floor(Math.random() * 8 + 1));
+
+        if (isWin) {
+            const mult = (Math.random() * 5 + 1.2).toFixed(2);
+            winAmount = parseFloat((betAmount * mult).toFixed(2));
+            const winSym = 'Symbol_' + Math.floor(Math.random() * 7 + 1);
+            syms[3] = winSym; syms[4] = winSym; syms[5] = winSym;
+        }
+
+        const newBalance = totalBalance - betAmount + winAmount;
+        db.query('UPDATE fortune_data SET real_balance = real_balance - ? + ? WHERE token = ?', [betAmount, winAmount, token], () => {
+            res.json({
+                success: true,
+                data: {
+                    credit: newBalance,
+                    balance: newBalance,
+                    bet_amount: betAmount,
+                    pull: {
+                        WinAmount: winAmount,
+                        WinOnDrop: winAmount,
+                        TotalWay: winAmount > 0 ? 5 : 0,
+                        SlotIcons: syms,
+                        ActiveIcons: winAmount > 0 ? [3, 4, 5] : [],
+                        ActiveLines: winAmount > 0 ? [{ index: 1, active_icon: [3, 4, 5] }] : []
+                    }
+                }
+            });
+        });
     });
 });
 
