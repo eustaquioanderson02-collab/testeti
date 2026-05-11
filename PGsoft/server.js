@@ -368,7 +368,7 @@ app.post('/api/data/:token/spin', (req, res) => {
   // ==========================================
   
   // Captura o valor da aposta real do jogo
-  let betAmount = req.body.betAmount || req.body.bet_amount || req.body.amount || req.body.b || req.query.betAmount || req.query.bet_amount || req.query.amount || req.query.b;
+  let betAmount = req.body.betamount || req.body.betAmount || req.body.bet_amount || req.body.amount || req.body.b || req.query.betamount || req.query.betAmount || req.query.bet_amount || req.query.amount || req.query.b;
   let cs = req.body.cs || req.query.cs;
   let ml = req.body.ml || req.query.ml;
   
