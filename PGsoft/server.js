@@ -34,22 +34,20 @@ let db;
 const useMysql = config.useMysql === true;
 
 if (useMysql) {
-  db = mysql.createConnection({
+  db = mysql.createPool({
     host: config.mysql.host,
     port: config.mysql.port,
     user: config.mysql.user,
     password: process.env.DB_PASSWORD || config.mysql.password,
     database: config.mysql.database,
     ssl: config.mysql.ssl ? { rejectUnauthorized: false } : undefined,
-    multipleStatements: true
+    multipleStatements: true,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
   });
 
-  db.connect((err) => {
-    if (err) {
-      console.error('Erro ao conectar ao banco de dados MySQL:', err);
-      throw err;
-    }
-    console.log('Conexão com o banco de dados MySQL Aiven estabelecida.');
+  console.log('Pool de conexões MySQL Aiven inicializado.');
 
     const initQueries = `
       CREATE TABLE IF NOT EXISTS fortune_data (
@@ -126,14 +124,13 @@ if (useMysql) {
       if (err) console.error("Erro ao criar tabelas MySQL:", err);
       else {
         db.query("SELECT count(*) as count FROM fortune_data", (err, results) => {
-          if (!err && results[0].count === 0) {
+          if (!err && results[0] && results[0].count === 0) {
             db.query(`INSERT INTO fortune_data (user_name, credit, num_line, line_num, bet_amount, free_num, free_total, free_amount, free_multi, freespin_mode, credit_line, buy_feature, buy_max, total_way, multipy, token, freemode, jackpot, free_spin, losses) 
             VALUES ('Guest', 43923, 5, 5, 32, 0, -1, 5000, 0, 0, 10, 50, 1300, 27, 0, '10a2d98d-daa5-47f4-ab58-593767798ba1', 0, 0, 0, 0)`);
           }
         });
       }
     });
-  });
 } else {
   const sqlite3 = require('sqlite3').verbose();
   const isVercel = process.env.VERCEL === '1';
