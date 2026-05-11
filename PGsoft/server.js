@@ -38,50 +38,62 @@ const db = mysql.createPool({
     connectionLimit: 10
 });
 
-// Garante que todas as tabelas existam ao iniciar
-db.query(`
-    CREATE TABLE IF NOT EXISTS fortune_data (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        phone VARCHAR(20),
-        email VARCHAR(255),
-        password VARCHAR(255),
-        fullName VARCHAR(255),
-        credit DOUBLE DEFAULT 0,
-        real_balance DOUBLE DEFAULT 0,
-        bonus_balance DOUBLE DEFAULT 0,
-        token VARCHAR(255) UNIQUE
-    );
-    CREATE TABLE IF NOT EXISTS deposits (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        transaction_id VARCHAR(255) UNIQUE,
-        user_token VARCHAR(255),
-        amount DOUBLE,
-        status VARCHAR(50) DEFAULT 'pending',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE IF NOT EXISTS webhook_logs (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        payload TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE IF NOT EXISTS wins (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        token VARCHAR(255),
-        amount DOUBLE,
-        win_amount DOUBLE,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE IF NOT EXISTS losses (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        token VARCHAR(255),
-        amount DOUBLE,
-        bet_amount DOUBLE,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-`, (err) => {
-    if (err) console.error('Erro ao criar tabelas:', err.message);
-    else console.log('Tabelas verificadas com sucesso.');
-});
+// Inicializa tabelas sequencialmente (Aiven não aceita multi-statement em pool)
+function initDB() {
+    const tables = [
+        `CREATE TABLE IF NOT EXISTS fortune_data (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            phone VARCHAR(20),
+            email VARCHAR(255),
+            password VARCHAR(255),
+            fullName VARCHAR(255),
+            credit DOUBLE DEFAULT 0,
+            real_balance DOUBLE DEFAULT 0,
+            bonus_balance DOUBLE DEFAULT 0,
+            token VARCHAR(255) UNIQUE
+        )`,
+        `CREATE TABLE IF NOT EXISTS deposits (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            transaction_id VARCHAR(255) UNIQUE,
+            user_token VARCHAR(255),
+            amount DOUBLE,
+            status VARCHAR(50) DEFAULT 'pending',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS webhook_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            payload TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS wins (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            token VARCHAR(255),
+            amount DOUBLE,
+            win_amount DOUBLE,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS losses (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            token VARCHAR(255),
+            amount DOUBLE,
+            bet_amount DOUBLE,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // Garante coluna bonus_balance em tabelas ja existentes sem ela
+        `ALTER TABLE fortune_data ADD COLUMN IF NOT EXISTS bonus_balance DOUBLE DEFAULT 0`,
+        `ALTER TABLE fortune_data ADD COLUMN IF NOT EXISTS credit DOUBLE DEFAULT 0`
+    ];
+    let i = 0;
+    function next() {
+        if (i >= tables.length) { console.log('✅ Banco inicializado com sucesso.'); return; }
+        db.query(tables[i++], (err) => {
+            if (err && !err.message.includes('Duplicate column')) console.warn('DB init warning:', err.message);
+            next();
+        });
+    }
+    next();
+}
+initDB();
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 function formatSessionData(s) {
@@ -180,7 +192,10 @@ app.post('/api/game/launch', (req, res) => {
 app.get('/api/data/:token/session', (req, res) => {
     const token = req.params.token;
     db.query('SELECT * FROM fortune_data WHERE token = ?', [token], (err, results) => {
-        if (err) return res.json({ success: false, message: 'DB Error' });
+        if (err) {
+            console.error('[SESSION ERROR]', err.message);
+            return res.json({ success: false, message: 'DB Error: ' + err.message });
+        }
         if (!results || results.length === 0) {
             if (token && token.startsWith('guest_')) {
                 const name = 'Guest_' + token.split('_')[1];
