@@ -382,15 +382,15 @@ app.post('/api/data/:token/spin', (req, res) => {
       }
       raw += '&' + req.url;
       
-      const matchCs = raw.match(/cs=([\d\.\,]+)/);
-      const matchMl = raw.match(/ml=([\d\.\,]+)/);
-      const matchB = raw.match(/b=([\d\.\,]+)/);
-      const matchBet = raw.match(/betAmount=([\d\.\,]+)/);
+      const matchCs = raw.match(/cs=([\d\.\,]+)/i);
+      const matchMl = raw.match(/ml=([\d\.\,]+)/i);
+      const matchB = raw.match(/b=([\d\.\,]+)/i);
+      const matchBet = raw.match(/betamount=([\d\.\,]+)/i);
       
       if (matchCs) cs = matchCs[1];
       if (matchMl) ml = matchMl[1];
-      if (matchB && !betAmount) betAmount = matchB[1];
-      if (matchBet && !betAmount) betAmount = matchBet[1];
+      if (matchB && !betAmount) betAmount = parseFloat(matchB[1]);
+      if (matchBet && !betAmount) betAmount = parseFloat(matchBet[1]);
   }
 
   if (cs) cs = cs.toString().replace(',', '.');
