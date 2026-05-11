@@ -293,15 +293,42 @@ app.post('/api/data/:token/spin', (req, res) => {
     let cs = parseFloat(req.body.cs) || 0.2;
     let ml = parseInt(req.body.ml)  || 1;
 
-    // Fallback para body urlencoded/string
-    if (!req.body.cs && typeof req.body === 'string') {
-        const mCs = req.body.match(/cs=([\d\.]+)/);
-        const mMl = req.body.match(/ml=(\d+)/);
-        cs = mCs ? parseFloat(mCs[1]) : 1;
-        ml = mMl ? parseInt(mMl[1]) : 1;
+    // Log completo para diagnóstico nos logs do Vercel
+    const allParams = { ...req.query, ...req.body };
+    console.log('[SPIN] token:', token, '| params:', JSON.stringify(allParams));
+
+    // Tenta todos os possíveis nomes de campo que o motor C3/PGsoft pode enviar
+    const rawCs = allParams.cs        ?? allParams.betLevel  ?? allParams.bet_size ??
+                  allParams.coinSize  ?? allParams.coin_size ?? allParams.size      ?? null;
+    const rawMl = allParams.ml        ?? allParams.betSize   ?? allParams.bet_level ??
+                  allParams.multiplier ?? allParams.level    ?? allParams.multi      ?? null;
+    const rawBet = allParams.bet      ?? allParams.betAmount ?? allParams.total_bet  ??
+                   allParams.amount   ?? null;
+
+    let cs, ml, bet;
+
+    if (rawBet && parseFloat(rawBet) > 0) {
+        // Jogo enviou valor total da aposta diretamente
+        bet = parseFloat(parseFloat(rawBet).toFixed(2));
+        cs  = bet / 5;
+        ml  = 1;
+    } else {
+        cs  = rawCs  ? parseFloat(rawCs)  : 0.2;
+        ml  = rawMl  ? parseInt(rawMl)    : 1;
+        bet = parseFloat((cs * ml * 5).toFixed(2));
     }
 
-    const bet = parseFloat((cs * ml * 5).toFixed(2));
+    // Último fallback: parseia string urlencoded manual
+    if ((!rawCs && !rawBet) && typeof req.body === 'string') {
+        const mCs  = req.body.match(/cs=([\d\.]+)/);
+        const mMl  = req.body.match(/ml=(\d+)/);
+        const mBet = req.body.match(/bet=([\d\.]+)/);
+        if (mBet) { bet = parseFloat(mBet[1]); cs = bet / 5; ml = 1; }
+        else { cs = mCs ? parseFloat(mCs[1]) : 0.2; ml = mMl ? parseInt(mMl[1]) : 1; bet = parseFloat((cs * ml * 5).toFixed(2)); }
+    }
+
+    console.log('[SPIN] cs:', cs, '| ml:', ml, '| bet calculado: R$', bet);
+
     if (!bet || bet <= 0) return res.json({ success: false, message: 'Aposta inválida' });
 
     db.query('SELECT * FROM fortune_data WHERE token = ?', [token], (err, results) => {
