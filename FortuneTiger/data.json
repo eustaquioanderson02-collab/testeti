@@ -3634,7 +3634,7 @@
             ["Keyboard", 20, false, [], 0, 0, null, null, [], false, false, 247261360531111, [], null, 142, null, []],
             ["Mouse", 21, false, [], 0, 0, null, null, [], false, false, 619713344674285, [], null, 143, null, []],
             ["Touch", 22, false, [], 0, 0, null, null, [], false, false, 349009336347204, [], null, 144, null, [true]],
-            ["SlotGenPHP", 23, false, [], 0, 0, null, null, [], false, false, 853511677975134, [], null, 145, null, ["http://localhost:3059/api/data", "10a2d98d-daa5-47f4-ab58-593767798ba1", false, "b53d0abe-71de-428d-82b8-24bf70c9375a", 0]],
+            ["SlotGenPHP", 23, false, [], 0, 0, null, null, [], false, false, 853511677975134, [], null, 145, null, ["/api/data", "10a2d98d-daa5-47f4-ab58-593767798ba1", false, "b53d0abe-71de-428d-82b8-24bf70c9375a", 0]],
             ["debug", 3, false, [], 0, 0, null, null, [], false, false, 158579858191760, [], null, 146, null],
             ["touchtxt", 3, false, [], 0, 0, null, null, [], false, false, 375364721016778, [], null, 147, null],
             ["htmlPayout", 24, false, [], 0, 0, null, null, [], false, false, 509546451265729, [], null, 148, null],
