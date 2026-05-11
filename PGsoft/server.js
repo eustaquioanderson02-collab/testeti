@@ -13,11 +13,9 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
-// Estáticos
 app.use('/FortuneTiger', express.static(path.join(__dirname, '../FortuneTiger')));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// CONEXÃO AIVEN (MYSQL)
 const db = mysql.createPool({
     host: config.mysql.host,
     port: config.mysql.port,
@@ -30,66 +28,27 @@ const db = mysql.createPool({
     connectionLimit: 10
 });
 
-// Inicialização de Tabelas
-db.query(`
-  CREATE TABLE IF NOT EXISTS fortune_data (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    phone VARCHAR(20) UNIQUE,
-    email VARCHAR(255),
-    password VARCHAR(255),
-    fullName VARCHAR(255),
-    credit DOUBLE DEFAULT 0,
-    real_balance DOUBLE DEFAULT 0,
-    bonus_balance DOUBLE DEFAULT 0,
-    token VARCHAR(255) UNIQUE
-  );
-  CREATE TABLE IF NOT EXISTS deposits (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    transaction_id VARCHAR(255) UNIQUE,
-    user_token VARCHAR(255),
-    amount DOUBLE,
-    status VARCHAR(50) DEFAULT 'pending',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS webhook_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    payload TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS wins (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    token VARCHAR(255),
-    amount DOUBLE,
-    win_amount DOUBLE,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS losses (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    token VARCHAR(255),
-    amount DOUBLE,
-    bet_amount DOUBLE,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-`);
-
 function formatSessionData(s) {
     if (!s) return {};
+    const totalReal = (s.real_balance || 0) + (s.bonus_balance || 0);
+    const cents = Math.floor(totalReal * 100);
     return {
         ...s,
-        bet_size_list: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+        bet_size_list: [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000], // Em centavos (0.10 a 100.00)
         multiple_list: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         currency_prefix: "R$ ",
         currency_decimal: ",",
         currency_thousand: ".",
-        bet_amount: s.bet_amount || 1,
-        credit_line: s.credit_line || 1,
-        num_line: s.num_line || 5,
-        credit: s.real_balance + s.bonus_balance,
-        balance: s.real_balance + s.bonus_balance
+        bet_amount: 10,
+        credit_line: 1,
+        num_line: 5,
+        credit: cents,
+        balance: cents,
+        real_balance: s.real_balance,
+        bonus_balance: s.bonus_balance
     };
 }
 
-// AUTH
 app.post('/api/auth/register', (req, res) => {
     const { phone, password, fullName } = req.body;
     const token = require('crypto').randomUUID();
@@ -109,16 +68,6 @@ app.post('/api/auth/login', (req, res) => {
     });
 });
 
-app.get('/api/user/me', (req, res) => {
-    const token = req.headers.authorization;
-    db.query('SELECT * FROM fortune_data WHERE token = ?', [token], (err, results) => {
-        if (err || results.length === 0) return res.status(401).json({ success: false });
-        const user = results[0];
-        res.json({ success: true, user: { fullName: user.fullName, real_balance: user.real_balance, bonus_balance: user.bonus_balance, balance: user.real_balance + user.bonus_balance } });
-    });
-});
-
-// MOTOR DO JOGO
 app.get('/api/data/:token/session', (req, res) => {
     const token = req.params.token;
     db.query('SELECT * FROM fortune_data WHERE token = ?', [token], (err, results) => {
@@ -133,18 +82,8 @@ app.get('/api/data/:token/session', (req, res) => {
             }
             return res.json({ success: false, message: 'Sessão não encontrada' });
         }
-        res.json({ success: true, message: 'OK', Action: "Session", EventName: "Session", data: formatSessionData(results[0]) });
+        res.json({ success: true, message: 'OK', data: formatSessionData(results[0]) });
     });
-});
-
-app.post('/api/game/launch', (req, res) => {
-    res.json({ success: true, url: `/FortuneTiger/index.html?token=${req.body.token}` });
-});
-
-app.get('/api/data/:token/icons', (req, res) => {
-    const icons = [];
-    for (let i = 0; i < 9; i++) icons.push({ icon_name: 'Symbol_' + Math.floor(Math.random() * 8 + 1), feature_symbol: null });
-    res.json({ success: true, data: icons });
 });
 
 app.post('/api/data/:token/spin', (req, res) => {
@@ -154,50 +93,49 @@ app.post('/api/data/:token/spin', (req, res) => {
         const raw = JSON.stringify(req.body);
         const mCs = raw.match(/cs=([\d\.]+)/);
         const mMl = raw.match(/ml=(\d+)/);
-        cs = mCs ? parseFloat(mCs[1]) : 1;
+        cs = mCs ? parseFloat(mCs[1]) : 10;
         ml = mMl ? parseInt(mMl[1]) : 1;
     }
-    const bet = parseFloat(cs) * parseInt(ml) * 5;
+    // No motor, cs e ml vêm em centavos se a lista for em centavos
+    const betCents = parseFloat(cs) * parseInt(ml) * 5;
+    const betReal = betCents / 100;
 
     db.query('SELECT * FROM fortune_data WHERE token = ?', [token], (err, results) => {
         if (err || results.length === 0) return res.json({ success: false, message: 'Sessão expirada' });
         const user = results[0];
-        const balance = user.real_balance + user.bonus_balance;
-        if (balance < bet) return res.json({ success: false, message: 'Saldo insuficiente' });
+        const totalReal = user.real_balance + user.bonus_balance;
+        if (totalReal < betReal) return res.json({ success: false, message: 'Saldo insuficiente' });
 
         const isWin = Math.random() < 0.25;
-        let win = 0, syms = [];
+        let winReal = 0, syms = [];
         for(let i=0; i<9; i++) syms.push('Symbol_' + Math.floor(Math.random() * 8 + 1));
         if (isWin) {
-            win = parseFloat((bet * (Math.random() * 5 + 1.2)).toFixed(2));
+            winReal = parseFloat((betReal * (Math.random() * 5 + 1.2)).toFixed(2));
             const s = 'Symbol_' + Math.floor(Math.random() * 7 + 1);
             syms[3] = s; syms[4] = s; syms[5] = s;
         }
 
-        db.query('UPDATE fortune_data SET real_balance = real_balance - ? + ? WHERE token = ?', [bet, win, token], () => {
-            if (win > 0) db.query('INSERT INTO wins (token, amount, win_amount) VALUES (?, ?, ?)', [token, bet, win]);
-            else db.query('INSERT INTO losses (token, amount, bet_amount) VALUES (?, ?, ?)', [token, bet, bet]);
+        const newReal = totalReal - betReal + winReal;
+        db.query('UPDATE fortune_data SET real_balance = real_balance - ? + ? WHERE token = ?', [betReal, winReal, token], () => {
+            if (winReal > 0) db.query('INSERT INTO wins (token, amount, win_amount) VALUES (?, ?, ?)', [token, betReal, winReal]);
+            else db.query('INSERT INTO losses (token, amount, bet_amount) VALUES (?, ?, ?)', [token, betReal, betReal]);
 
+            const centsNow = Math.floor(newReal * 100);
             res.json({
                 success: true, message: 'OK',
-                Action: "Spin",
-                EventName: "Spin",
                 data: {
-                    credit: balance - bet + win,
-                    balance: balance - bet + win,
-                    bet_amount: bet,
+                    credit: centsNow,
+                    balance: centsNow,
+                    bet_amount: betCents,
                     pull: {
-                        WinAmount: win, WinOnDrop: win, TotalWay: win > 0 ? 5 : 0,
+                        WinAmount: Math.floor(winReal * 100), WinOnDrop: Math.floor(winReal * 100), TotalWay: winReal > 0 ? 5 : 0,
                         FreeSpin: 0, HasNewSpawn: false, HasPlaceHolder: false, LastMultiply: 0,
                         WildFixedIcons: [], HasJackpot: false, HasScatter: false, CountScatter: 0,
                         MultipyScatter: 0, MultiplyCount: 0, SlotIcons: syms,
-                        ActiveIcons: win > 0 ? [3, 4, 5] : [],
-                        ActiveLines: win > 0 ? [{ index: 1, active_icon: [3, 4, 5] }] : [],
+                        ActiveIcons: winReal > 0 ? [3, 4, 5] : [],
+                        ActiveLines: winReal > 0 ? [{ index: 1, active_icon: [3, 4, 5] }] : [],
                         WinLogs: [], DropLine: 0, DropLineData: [], MultipleList: [], FeatureResult: null,
-                        HasFreeSpin: false,
-                        HasRespin: false,
-                        IsFeature: false,
-                        NextStep: "Spin"
+                        HasFreeSpin: false, HasRespin: false, IsFeature: false, NextStep: "Spin"
                     }
                 }
             });
@@ -205,17 +143,6 @@ app.post('/api/data/:token/spin', (req, res) => {
     });
 });
 
-app.post('/api/data/:token/histories', (req, res) => {
-    const t = req.params.token;
-    const q = `SELECT id, win_amount as win, amount as bet, timestamp FROM wins WHERE token = ? UNION ALL SELECT id, 0 as win, amount as bet, timestamp FROM losses WHERE token = ? ORDER BY timestamp DESC LIMIT 20`;
-    db.query(q, [t, t], (err, results) => {
-        if (err) return res.json({ success: true, data: { items: [] } });
-        const items = results.map(r => ({ id: r.id, spin_date: new Date(r.timestamp).toISOString().split('T')[0], spin_hour: new Date(r.timestamp).toTimeString().split(' ')[0], total_bet: r.bet, win_amount: r.win, profit: r.win - r.bet }));
-        res.json({ success: true, data: { items, totalRecord: items.length } });
-    });
-});
-
-// PAGAMENTO
 app.post('/api/payment/deposit', async (req, res) => {
     const token = req.headers.authorization;
     const { amount } = req.body;
@@ -243,11 +170,9 @@ app.post('/api/payment/webhook', (req, res) => {
     const p = req.body;
     db.query('INSERT INTO webhook_logs (payload) VALUES (?)', [JSON.stringify(p)]);
     const tx = p.transaction || {};
-    const status = tx.status;
     const userToken = tx.identifier || p.identifier;
     const amount = parseFloat(tx.amount || 0);
-
-    if (p.event === 'TRANSACTION_PAID' || status === 'COMPLETED' || status === 'PAID') {
+    if (p.event === 'TRANSACTION_PAID' || tx.status === 'PAID' || tx.status === 'COMPLETED') {
         db.query('SELECT * FROM deposits WHERE (transaction_id = ? OR transaction_id = ?) AND status = "pending"', [tx.external_id, tx.id], (err, results) => {
             if (!err && results.length > 0) {
                 const d = results[0];
@@ -266,6 +191,16 @@ app.get('/api/payment/check-status/:id', (req, res) => {
     db.query('SELECT status FROM deposits WHERE transaction_id = ? OR transaction_id = ?', [req.params.id, req.params.id], (err, results) => {
         if (!err && results.length > 0) res.json({ success: true, status: results[0].status.toUpperCase() });
         else res.json({ success: false });
+    });
+});
+
+app.post('/api/data/:token/histories', (req, res) => {
+    const t = req.params.token;
+    const q = `SELECT id, win_amount as win, amount as bet, timestamp FROM wins WHERE token = ? UNION ALL SELECT id, 0 as win, amount as bet, timestamp FROM losses WHERE token = ? ORDER BY timestamp DESC LIMIT 20`;
+    db.query(q, [t, t], (err, results) => {
+        if (err) return res.json({ success: true, data: { items: [] } });
+        const items = results.map(r => ({ id: r.id, spin_date: new Date(r.timestamp).toISOString().split('T')[0], spin_hour: new Date(r.timestamp).toTimeString().split(' ')[0], total_bet: r.bet, win_amount: r.win, profit: r.win - r.bet }));
+        res.json({ success: true, data: { items, totalRecord: items.length } });
     });
 });
 
