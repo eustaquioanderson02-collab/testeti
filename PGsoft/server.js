@@ -107,12 +107,13 @@ app.post('/api/data/:token/spin', (req, res) => {
         if (totalReal < bet) return res.json({ success: false, message: 'Saldo insuficiente' });
 
         const isWin = Math.random() < 0.25;
-        let win = 0, syms = [];
-        for(let i=0; i<9; i++) syms.push('Symbol_' + Math.floor(Math.random() * 8 + 1));
+        let win = 0;
+        // SlotIcons DEVEM ser inteiros (índice do símbolo), não strings
+        const syms = Array.from({length: 9}, () => Math.floor(Math.random() * 8) + 1);
         if (isWin) {
             win = parseFloat((bet * (Math.random() * 5 + 1.2)).toFixed(2));
-            const s = 'Symbol_' + Math.floor(Math.random() * 7 + 1);
-            syms[3] = s; syms[4] = s; syms[5] = s;
+            const winSym = Math.floor(Math.random() * 7) + 1;
+            syms[3] = winSym; syms[4] = winSym; syms[5] = winSym;
         }
 
         const newBalance = parseFloat((totalReal - bet + win).toFixed(2));
@@ -128,14 +129,31 @@ app.post('/api/data/:token/spin', (req, res) => {
                     balance: newBalance,
                     bet_amount: bet,
                     pull: {
-                        WinAmount: win, WinOnDrop: win, TotalWay: win > 0 ? 5 : 0,
-                        FreeSpin: 0, HasNewSpawn: false, HasPlaceHolder: false, LastMultiply: 0,
-                        WildFixedIcons: [], HasJackpot: false, HasScatter: false, CountScatter: 0,
-                        MultipyScatter: 0, MultiplyCount: 0, SlotIcons: syms,
+                        WinAmount: win,
+                        WinOnDrop: win,
+                        TotalWay: win > 0 ? 5 : 0,
+                        FreeSpin: 0,
+                        HasNewSpawn: false,
+                        HasPlaceHolder: false,
+                        LastMultiply: 0,
+                        WildFixedIcons: [],
+                        HasJackpot: false,
+                        HasScatter: false,
+                        CountScatter: 0,
+                        MultipyScatter: 0,
+                        MultiplyCount: 0,
+                        SlotIcons: syms,
                         ActiveIcons: win > 0 ? [3, 4, 5] : [],
                         ActiveLines: win > 0 ? [{ index: 1, active_icon: [3, 4, 5] }] : [],
-                        WinLogs: [], DropLine: 0, DropLineData: [], MultipleList: [], FeatureResult: null,
-                        HasFreeSpin: false, HasRespin: false, IsFeature: false, NextStep: "Spin"
+                        WinLogs: [],
+                        DropLine: 0,
+                        DropLineData: [],
+                        MultipleList: [],
+                        FeatureResult: null,
+                        HasFreeSpin: false,
+                        HasRespin: false,
+                        IsFeature: false,
+                        NextStep: "Spin"
                     }
                 }
             });
