@@ -88,19 +88,17 @@
             
             <button onclick="doWd()" style="background: linear-gradient(to right, #00ffcc, #0088aa); border: none; padding: 22px; width: 100%; border-radius: 25px; font-weight: 900; color: #000; cursor: pointer; font-size: 18px; text-transform: uppercase; box-shadow: 0 15px 35px rgba(0,255,204,0.2);">Confirmar Saque</button>
             <p style="font-size: 10px; color: #2a4444; margin-top: 20px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold;">Processamento Prioritário</p>
-        </div>
-    </div>
-
-    <script>
-        let gReal = 0, gBonus = 0, initial = true;
+       <script>
+        let gReal = 0, gBonus = 0, initial = true, pollInt;
 
         function openPremiumModal() {
             document.getElementById('premium-gold-modal').style.display = 'flex';
+            check(); // Atualiza saldo na hora ao abrir
             document.getElementById('cur-bal').innerText = 'Saldo: R$ ' + (gReal + gBonus).toFixed(2).replace('.',',');
             document.getElementById('qr-area').style.display = 'none';
             document.getElementById('btn-gen').style.display = 'block';
         }
-        window.openDepositModal = openPremiumModal; // Alias para evitar erro de referência
+        window.openDepositModal = openPremiumModal;
 
         function openWithdraw() {
             document.getElementById('withdraw-modal').style.display = 'flex';
@@ -145,7 +143,6 @@
             }).catch(() => { btn.innerText = 'Gerar PIX Agora'; btn.disabled = false; });
         }
 
-        let pollInt;
         function startPolling(id) {
             if(pollInt) clearInterval(pollInt);
             pollInt = setInterval(() => {
@@ -156,12 +153,14 @@
                         if(modal.style.display === 'flex') {
                             const btnArea = document.getElementById('qr-area');
                             btnArea.innerHTML = '<h3 style="color:#00ffcc; font-size:20px; font-weight:900; margin:20px 0;">✅ DEPÓSITO REALIZADO</h3><p style="color:#888; font-size:12px;">Seu saldo foi atualizado!</p>';
+                            check();
                         } else {
                             showToast();
+                            check();
                         }
                     }
                 });
-            }, 3000);
+            }, 2500);
         }
 
         function showToast() {
@@ -192,6 +191,25 @@
             });
         }
 
+        function check() {
+            const token = new URLSearchParams(window.location.search).get('token');
+            if (!token) return;
+            fetch(`/api/data/${token}/session`).then(r => r.json()).then(data => {
+                if (data.success) {
+                    const d = data.data;
+                    gReal = parseFloat(d.real_balance || 0);
+                    gBonus = parseFloat(d.bonus_balance || 0);
+                    const total = gReal + gBonus;
+                    const ov = document.getElementById('tiger-overlay');
+                    if(ov) {
+                        ov.innerText = `SALDO: R$ ${total.toFixed(2).replace('.', ',')}`;
+                        ov.style.display = 'block';
+                    }
+                    initial = false;
+                }
+            }).catch(() => {});
+        }
+
         (function() {
             const originalSend = XMLHttpRequest.prototype.send;
             XMLHttpRequest.prototype.send = function() {
@@ -199,33 +217,13 @@
                     if (this.responseURL && this.responseURL.includes('/spin') && this.status === 200) {
                         try {
                             const data = JSON.parse(this.responseText);
-                            // Modal automático removido a pedido do usuário
                         } catch(e) {}
                     }
                 });
                 return originalSend.apply(this, arguments);
             };
-
-            function check() {
-                const token = new URLSearchParams(window.location.search).get('token');
-                if (!token) return;
-                fetch(`/api/data/${token}/session`).then(r => r.json()).then(data => {
-                    if (data.success) {
-                        const d = data.data;
-                        gReal = parseFloat(d.real_balance || 0);
-                        gBonus = parseFloat(d.bonus_balance || 0);
-                        const total = gReal + gBonus;
-                        const ov = document.getElementById('tiger-overlay');
-                        if(ov) {
-                            ov.innerText = `SALDO: R$ ${total.toFixed(2).replace('.', ',')}`;
-                            ov.style.display = 'block';
-                        }
-                        initial = false;
-                    }
-                }).catch(() => {});
-            }
             setTimeout(check, 500);
-            setInterval(check, 3000); // Polling acelerado (3s)
+            setInterval(check, 2500);
         })();
     </script>
 
