@@ -88,17 +88,45 @@ function formatSessionData(s) {
     if (!s) return {};
     const totalReal = parseFloat((parseFloat(s.real_balance || 0) + parseFloat(s.bonus_balance || 0)).toFixed(2));
     return {
-        ...s,
-        bet_size_list: [0.4, 0.8, 1.2, 2, 4, 5, 15, 25, 50, 200, 250, 500, 1000, 2000],
-        multiple_list: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        currency_prefix: "R$ ",
-        currency_decimal: ",",
-        currency_thousand: ".",
-        bet_amount: 1,
-        credit_line: 1,
-        num_line: 5,
+        user_name: s.fullName || s.token || 'Guest',
         credit: totalReal,
-        balance: totalReal,
+        num_line: 5,
+        line_num: 5,
+        bet_amount: 0.2,
+        free_num: 0,
+        free_total: -1,
+        free_amount: 0,
+        free_multi: 0,
+        freespin_mode: 0,
+        multiple_list: [],
+        credit_line: 1,
+        buy_feature: 0,
+        buy_max: 0,
+        feature: {},
+        total_way: 5,
+        multipy: 0,
+        currency_prefix: "R$ ",
+        currency_suffix: "",
+        currency_thousand: ".",
+        currency_decimal: ",",
+        bet_size_list: ["0.2", "2", "20", "100"],
+        previous_session: false,
+        game_state: "",
+        feature_symbol: "",
+        feature_result: {
+            left_feature: 9,
+            select_count: 0,
+            right_feature: 9,
+            select_finish: false,
+            access_feature: false
+        },
+        icon_data: [
+            "Symbol_2","Symbol_0","Symbol_2",
+            "Symbol_0","Symbol_0","Symbol_0",
+            "Symbol_0","Symbol_0","Symbol_0"
+        ],
+        active_lines: [],
+        drop_line: [],
         real_balance: parseFloat((s.real_balance || 0).toFixed(2)),
         bonus_balance: parseFloat((s.bonus_balance || 0).toFixed(2))
     };
@@ -200,12 +228,18 @@ app.post('/api/data/:token/spin', (req, res) => {
 
         const isWin = Math.random() < 0.25;
         let win = 0;
-        // SlotIcons: inteiros (índice do símbolo 1-8), exigido pelo motor C3
-        const syms = Array.from({ length: 9 }, () => Math.floor(Math.random() * 8) + 1);
+        const symNames = ['Symbol_0','Symbol_1','Symbol_2','Symbol_3','Symbol_4','Symbol_5','Symbol_6','Symbol_7'];
+        const syms = Array.from({ length: 9 }, () => symNames[Math.floor(Math.random() * symNames.length)]);
+        let activeIcons = [];
+        let activeLines = [];
+        let winLogs = [];
         if (isWin) {
             win = parseFloat((bet * (Math.random() * 5 + 1.2)).toFixed(2));
-            const winSym = Math.floor(Math.random() * 7) + 1;
+            const winSym = symNames[Math.floor(Math.random() * 5) + 1];
             syms[3] = winSym; syms[4] = winSym; syms[5] = winSym;
+            activeIcons = [3, 4, 5];
+            activeLines = [{ name: winSym, index: 1, payout: win, combine: 3, way_243: 1, multiply: 0, win_amount: win, active_icon: [3, 4, 5] }];
+            winLogs = [`[BET] betLevel: ${bet}, betSize:1, baseBet:${bet} => ${win}`];
         }
 
         const newBalance = parseFloat((totalReal - bet + win).toFixed(2));
@@ -215,16 +249,23 @@ app.post('/api/data/:token/spin', (req, res) => {
             else db.query('INSERT INTO losses (token, amount, bet_amount) VALUES (?, ?, ?)', [token, bet, bet]);
 
             res.json({
-                success: true, message: 'OK',
+                success: true,
+                message: 'Spin success',
                 data: {
                     credit: newBalance,
-                    balance: newBalance,
+                    freemode: false,
+                    jackpot: 0,
+                    free_spin: 0,
+                    free_num: 0,
+                    scaler: 0,
+                    num_line: 5,
                     bet_amount: bet,
+                    feature_symbol: "",
                     pull: {
                         WinAmount: win,
                         WinOnDrop: win,
                         TotalWay: win > 0 ? 5 : 0,
-                        FreeSpin: 0,
+                        FreeSpin: -1,
                         HasNewSpawn: false,
                         HasPlaceHolder: false,
                         LastMultiply: 0,
@@ -232,20 +273,23 @@ app.post('/api/data/:token/spin', (req, res) => {
                         HasJackpot: false,
                         HasScatter: false,
                         CountScatter: 0,
+                        WildColumIcon: "",
                         MultipyScatter: 0,
-                        MultiplyCount: 0,
+                        MultiplyCount: 1,
                         SlotIcons: syms,
-                        ActiveIcons: win > 0 ? [3, 4, 5] : [],
-                        ActiveLines: win > 0 ? [{ index: 1, active_icon: [3, 4, 5] }] : [],
-                        WinLogs: [],
+                        ActiveIcons: activeIcons,
+                        ActiveLines: activeLines,
+                        WinLogs: winLogs,
                         DropLine: 0,
                         DropLineData: [],
                         MultipleList: [],
-                        FeatureResult: 0,
-                        HasFreeSpin: false,
-                        HasRespin: false,
-                        IsFeature: false,
-                        NextStep: "Spin"
+                        FeatureResult: {
+                            left_feature: 9,
+                            select_count: 0,
+                            right_feature: 9,
+                            select_finish: false,
+                            access_feature: false
+                        }
                     }
                 }
             });
