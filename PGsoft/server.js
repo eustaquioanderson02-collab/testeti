@@ -374,6 +374,18 @@ app.post('/api/data/:token/spin', (req, res) => {
   let cs = req.body.cs || req.query.cs;
   let ml = req.body.ml || req.query.ml;
   
+  // Tenta pescar da raw string caso o express tenha feito parsing errado (ex: {'cs=0.10&ml=10': ''})
+  if (!cs || !ml) {
+      const raw = Object.keys(req.body).join('&') + '&' + req.url;
+      const matchCs = raw.match(/cs=([\d\.\,]+)/);
+      const matchMl = raw.match(/ml=([\d\.\,]+)/);
+      if (matchCs) cs = matchCs[1];
+      if (matchMl) ml = matchMl[1];
+  }
+
+  if (cs) cs = cs.toString().replace(',', '.');
+  if (ml) ml = ml.toString().replace(',', '.');
+
   if (!betAmount && cs && ml) {
       // Cálculo padrão de apostas PG Soft (Bet Size * Bet Level * Base Bet (5))
       betAmount = parseFloat(cs) * parseInt(ml) * 5;
