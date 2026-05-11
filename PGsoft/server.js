@@ -386,11 +386,28 @@ app.post('/api/data/:token/spin', (req, res) => {
       const matchMl = raw.match(/ml=([\d\.\,]+)/i);
       const matchB = raw.match(/b=([\d\.\,]+)/i);
       const matchBet = raw.match(/betamount=([\d\.\,]+)/i);
+      const matchCpl = raw.match(/cpl=([\d\.\,]+)/i);
+      const matchNumline = raw.match(/numline=([\d\.\,]+)/i);
       
       if (matchCs) cs = matchCs[1];
       if (matchMl) ml = matchMl[1];
       if (matchB && !betAmount) betAmount = parseFloat(matchB[1]);
-      if (matchBet && !betAmount) betAmount = parseFloat(matchBet[1]);
+      
+      let baseBetAmount = betAmount;
+      if (matchBet && !baseBetAmount) baseBetAmount = parseFloat(matchBet[1]);
+      
+      let cpl = 1;
+      if (matchCpl) cpl = parseInt(matchCpl[1]);
+      
+      let numline = 5;
+      if (matchNumline) numline = parseInt(matchNumline[1]);
+
+      // Se o motor do jogo enviar betamount como Bet Size e cpl como Bet Level, calcular a aposta total
+      if (baseBetAmount && matchCpl) {
+          betAmount = baseBetAmount * cpl * numline;
+      } else {
+          betAmount = baseBetAmount;
+      }
   }
 
   if (cs) cs = cs.toString().replace(',', '.');
