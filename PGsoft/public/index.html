@@ -1,78 +1,137 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fortune Tiger - VIP Gold</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    <title>Tigre da Fortuna — Onde a Sorte Encontra o Ouro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --gold: #ffcc00; --bg: #0b0705; --card: #1a1410; }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
-        body { background: var(--bg); color: #fff; overflow-x: hidden; }
-        
-        .premium-bg { position: fixed; inset: 0; background: radial-gradient(circle at 50% 50%, #2a1f18 0%, #000 100%); z-index: -1; }
-        
-        header { padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,204,0,0.1); }
-        .logo { font-size: 24px; font-weight: 900; color: var(--gold); }
-        
-        .btn-gold { background: linear-gradient(to right, #ffcc00, #ff8800); color: #000; padding: 12px 25px; border-radius: 12px; font-weight: 900; border: none; cursor: pointer; text-transform: uppercase; transition: 0.3s; }
-        .btn-gold:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(255,204,0,0.4); }
+        :root {
+            --gold: #ffcc00;
+            --gold-light: #fff3a0;
+            --fire: #ff4d00;
+            --bg: #0b0705;
+            --card: rgba(26, 20, 16, 0.95);
+            --text: #ffffff;
+            --muted: #a0a0a0;
+        }
 
-        .container { max-width: 1000px; margin: 50px auto; padding: 20px; text-align: center; }
-        .balance-box { background: var(--card); padding: 40px; border-radius: 30px; border: 1px solid rgba(255,204,0,0.2); margin-bottom: 40px; border-top: 4px solid var(--gold); }
-        .balance-box h2 { font-size: 48px; color: var(--gold); margin: 10px 0; }
-        
-        /* NOVO MODAL PREMIUM GOLD */
-        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 5000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
-        .modal-content { background: linear-gradient(145deg, #1a1410, #2a1f18); padding: 35px; border-radius: 35px; border: 1px solid #ffcc0044; width: 92%; max-width: 400px; text-align: center; border-top: 5px solid #ffcc00; box-shadow: 0 30px 100px rgba(0,0,0,1); position: relative; }
-        .close { position: absolute; top: 15px; right: 15px; color: #fff; cursor: pointer; font-size: 24px; opacity: 0.5; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; overflow-x: hidden; min-height: 100vh; }
+        .landing-wrapper { position: relative; min-height: 100vh; background: url('landing_bg.png') no-repeat center center; background-size: cover; }
+        .landing-overlay { position: absolute; inset: 0; background: radial-gradient(circle at 50% 40%, transparent 0%, var(--bg) 85%); z-index: 1; }
+        .content-relative { position: relative; z-index: 2; }
+        header { padding: 25px 40px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent); }
+        .logo { font-size: 28px; font-weight: 800; color: var(--gold); letter-spacing: -1px; }
+        .nav-btns { display: flex; gap: 15px; }
+        .btn-nav { padding: 10px 25px; border-radius: 12px; font-weight: 600; cursor: pointer; transition: 0.3s; text-decoration: none; font-size: 14px; }
+        .btn-login { background: transparent; border: 1px solid var(--gold); color: var(--gold); }
+        .btn-register { background: var(--gold); color: #000; border: none; box-shadow: 0 5px 15px rgba(255, 204, 0, 0.3); }
+        .btn-logout { background: #ff4d0022; border: 1px solid #ff4d0044; color: #ff4d00; display: none; }
+        .hero { text-align: center; padding: 100px 20px 60px; max-width: 900px; margin: 0 auto; }
+        .hero h1 { font-size: 64px; font-weight: 800; line-height: 1; margin-bottom: 25px; }
+        .hero h1 span { color: var(--gold); display: block; }
+        .stats-bar { display: flex; justify-content: center; gap: 30px; margin-bottom: 60px; }
+        .stat-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); padding: 20px 40px; border-radius: 24px; text-align: center; }
+        .stat-card h3 { font-size: 32px; color: var(--gold); }
 
-        .offer-card { background: rgba(255,204,0,0.05); border: 1px solid rgba(255,204,0,0.2); border-radius: 20px; padding: 15px; cursor: pointer; transition: 0.2s; flex: 1; }
-        .offer-card:hover { background: rgba(255,204,0,0.1); border-color: var(--gold); }
-        
-        .dep-input { width: 100%; background: #000; border: 2px solid #332; padding: 18px; border-radius: 18px; color: #fff; font-size: 24px; font-weight: 900; text-align: center; outline: none; margin: 20px 0; border-left: 5px solid var(--gold); }
-        
-        .qr-area { background: #fff; padding: 15px; border-radius: 20px; display: inline-block; margin: 20px 0; }
-        .pix-copy { background: #000; padding: 15px; border-radius: 12px; font-size: 11px; color: #888; cursor: pointer; border: 1px dashed var(--gold); }
+        /* DASHBOARD SECTION */
+        #dashboard-section { display: none; padding: 40px 20px; max-width: 1000px; margin: 0 auto; }
+        .balance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 35px; }
+        .balance-card { background: var(--card); border: 1px solid rgba(255, 255, 255, 0.05); padding: 30px; border-radius: 28px; position: relative; }
+        .balance-card h2 { font-size: 36px; color: var(--gold); }
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .btn-game { grid-column: span 2; background: linear-gradient(45deg, #ff4d00, #ffcc00); padding: 25px; font-size: 22px; font-weight: 800; border-radius: 20px; border: none; cursor: pointer; }
+        .btn-sec { background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 18px; border-radius: 16px; font-weight: 700; cursor: pointer; }
+
+        /* AUTH MODAL */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.9); z-index: 1000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
+        .auth-card { background: var(--card); width: 100%; max-width: 450px; padding: 40px; border-radius: 32px; border: 1px solid #ffcc0033; position: relative; }
+
+        /* PREMIUM GOLD MODAL (O NOVO) */
+        .premium-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.96); z-index: 5000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
+        .premium-content { background: linear-gradient(145deg, #1a1410, #2a1f18); padding: 35px; border-radius: 35px; border: 1px solid #ffcc0044; width: 92%; max-width: 400px; text-align: center; border-top: 5px solid #ffcc00; box-shadow: 0 30px 100px rgba(0,0,0,1); position: relative; color: #fff; }
+        .close-premium { position: absolute; top: 20px; right: 20px; color: #fff; cursor: pointer; font-size: 24px; opacity: 0.5; }
+        .offer-box { display: flex; gap: 10px; margin-bottom: 25px; }
+        .offer-card { flex: 1; background: rgba(255,204,0,0.06); border: 1px solid rgba(255,204,0,0.2); border-radius: 20px; padding: 15px; cursor: pointer; transition: 0.2s; }
+        .offer-card:hover { background: rgba(255,204,0,0.1); border-color: #ffcc00; }
+        .dep-input-gold { width: 100%; background: #000; border: 2px solid #332; padding: 18px; border-radius: 18px; color: #fff; font-size: 26px; font-weight: 900; text-align: center; outline: none; margin-bottom: 20px; border-left: 5px solid #ffcc00; }
+        .btn-gen-gold { background: linear-gradient(to right, #ffcc00, #ff8800); border: none; padding: 20px; width: 100%; border-radius: 22px; font-weight: 900; color: #000; cursor: pointer; font-size: 18px; text-transform: uppercase; }
+        .qr-area { background: #fff; padding: 12px; border-radius: 20px; display: inline-block; margin: 20px 0; }
+        .pix-copy-box { background: #000; padding: 15px; border-radius: 12px; font-size: 11px; color: #888; cursor: pointer; border: 1px dashed #ffcc00; word-break: break-all; }
     </style>
 </head>
+
 <body>
-    <div class="premium-bg"></div>
-    <header>
-        <div class="logo">🐯 TIGER GOLD</div>
-        <div id="auth-btns">
-            <button class="btn-gold" onclick="showAuth()">Acessar Conta</button>
-        </div>
-        <button id="logout-btn" style="display:none;" class="btn-gold" onclick="logout()">Sair</button>
-    </header>
+    <div class="landing-wrapper" id="landing-home">
+        <div class="landing-overlay"></div>
+        <div class="content-relative">
+            <header>
+                <div class="logo">🐯 FORTUNA</div>
+                <div class="nav-btns">
+                    <button class="btn-nav btn-login" id="nav-login-btn" onclick="showAuth(true)">Entrar</button>
+                    <button class="btn-nav btn-register" id="nav-reg-btn" onclick="showAuth(false)">Cadastrar</button>
+                    <button class="btn-nav btn-logout" id="logout-btn" onclick="logout()">Sair</button>
+                </div>
+            </header>
 
-    <div class="container" id="landing-home">
-        <h1 style="font-size: 60px; margin-bottom: 20px;">O Ouro do Tigre<br><span style="color:var(--gold)">Agora é VIP</span></h1>
-        <p style="opacity: 0.7; margin-bottom: 40px;">Participe da plataforma que mais paga no Brasil com bônus exclusivos.</p>
-        <button class="btn-gold" style="padding: 20px 50px; font-size: 18px;" onclick="showAuth()">Jogar Agora</button>
-    </div>
+            <div id="landing-content">
+                <div class="hero">
+                    <h1>Sinta a fúria e o<span>Ouro do Tigre</span></h1>
+                    <p>Ganhos reais, pagamentos instantâneos e bônus imperdíveis.</p>
+                    <button class="btn-game" style="width: auto; padding: 20px 60px;" onclick="showAuth(false)">COMEÇAR AGORA</button>
+                </div>
 
-    <div id="dashboard" class="container" style="display:none;">
-        <div class="balance-box">
-            <p style="text-transform: uppercase; letter-spacing: 2px; opacity: 0.5;">Saldo Disponível</p>
-            <h2 id="user-balance">R$ 0,00</h2>
-            <div style="display:flex; gap: 15px; justify-content: center; margin-top: 30px;">
-                <button class="btn-gold" onclick="launchGame()">🎰 Abrir Jogo</button>
-                <button class="btn-gold" style="background:#222; color:var(--gold); border: 1px solid var(--gold);" onclick="openDeposit()">➕ Depositar</button>
+                <div class="stats-bar">
+                    <div class="stat-card"><h3>12K+</h3><p>Jogadores</p></div>
+                    <div class="stat-card"><h3>R$ 2M</h3><p>Pagos</p></div>
+                    <div class="stat-card"><h3>99.9%</h3><p>Uptime</p></div>
+                </div>
+            </div>
+
+            <div id="dashboard-section">
+                <div style="margin-bottom: 40px;">
+                    <h1 style="font-size: 42px;">Bem-vindo, <span id="user-name" style="color: var(--gold);">Jogador</span></h1>
+                </div>
+                <div class="balance-grid">
+                    <div class="balance-card"><p>Saldo Real</p><h2 id="real-balance">R$ 0,00</h2></div>
+                    <div class="balance-card"><p>Saldo Bônus</p><h2 id="bonus-balance">R$ 0,00</h2></div>
+                </div>
+                <div class="actions">
+                    <button class="btn-game" onclick="launchGame()">🎰 JOGAR TIGER AGORA</button>
+                    <button class="btn-sec" onclick="openPremiumDeposit()">➕ DEPOSITAR PIX</button>
+                    <button class="btn-sec" onclick="openWithdraw()">💰 SOLICITAR SAQUE</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- MODAL DEPÓSITO PREMIUM GOLD -->
-    <div id="modal-deposit" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModals()">✕</span>
-            <div style="font-size: 50px; margin-bottom: 10px;">🐯</div>
-            <h2 style="color: var(--gold); font-weight: 900; text-transform: uppercase;">Recarregar</h2>
-            <p style="font-size: 11px; opacity: 0.5; margin-bottom: 20px;">ESCOLHA UMA PROMOÇÃO VIP</p>
+    <!-- MODAL AUTH -->
+    <div id="auth-modal" class="modal-overlay">
+        <div class="auth-card">
+            <span style="position:absolute; top:20px; right:20px; cursor:pointer;" onclick="closeModals()">✕</span>
+            <h2 id="auth-title" style="color:var(--gold); margin-bottom:20px;">Acessar VIP</h2>
+            <div id="reg-fields" style="display:none; margin-bottom:15px;">
+                <input type="text" id="reg-name" placeholder="Nome Completo" style="width:100%; padding:15px; background:#000; border:1px solid #333; color:#fff; border-radius:12px;">
+            </div>
+            <input type="tel" id="auth-phone" placeholder="Celular" style="width:100%; padding:15px; background:#000; border:1px solid #333; color:#fff; border-radius:12px; margin-bottom:15px;">
+            <input type="password" id="auth-pass" placeholder="Senha" style="width:100%; padding:15px; background:#000; border:1px solid #333; color:#fff; border-radius:12px; margin-bottom:20px;">
+            <button class="btn-game" style="width:100%; padding:15px; font-size:16px;" onclick="doAuth()">Confirmar</button>
+            <p style="margin-top:20px; font-size:12px; opacity:0.5; text-align:center; cursor:pointer;" onclick="toggleAuth()">Ainda não tem conta? Clique aqui</p>
+        </div>
+    </div>
 
-            <div id="step-1">
-                <div style="display:flex; gap: 10px; margin-bottom: 20px;">
+    <!-- O NOVO MODAL PREMIUM GOLD -->
+    <div id="modal-premium-deposit" class="premium-modal">
+        <div class="premium-content">
+            <span class="close-premium" onclick="closeModals()">✕</span>
+            <div style="font-size: 50px; margin-bottom: 10px;">🐯</div>
+            <h2 style="color: var(--gold); font-weight: 900; text-transform: uppercase;">Recarregar Saldo</h2>
+            <p style="font-size: 11px; opacity: 0.5; margin-bottom: 25px;">ESCOLHA UMA PROMOÇÃO VIP</p>
+
+            <div id="dep-step-1">
+                <div class="offer-box">
                     <div class="offer-card" onclick="setOffer(120)">
                         <div style="font-size: 18px; font-weight: 900;">R$ 120</div>
                         <div style="font-size: 10px; color: var(--gold);">+ R$ 120 BÔNUS</div>
@@ -82,55 +141,52 @@
                         <div style="font-size: 10px; color: var(--gold);">+ R$ 200 BÔNUS</div>
                     </div>
                 </div>
-                <input type="text" id="dep-amount" class="dep-input" value="R$ 120,00" oninput="mask(this)">
-                <button id="gen-btn" class="btn-gold" style="width:100%; padding: 20px;" onclick="generate()">Gerar PIX VIP</button>
+                <input type="text" id="dep-amount-gold" class="dep-input-gold" value="R$ 120,00" oninput="mask(this)">
+                <button id="btn-gen-gold" class="btn-gen-gold" onclick="generateGold()">Gerar PIX VIP</button>
             </div>
 
-            <div id="step-2" style="display:none;">
-                <div class="qr-area"><img id="qr-img" style="width: 180px; height: 180px; display: block;"></div>
-                <div class="pix-copy" onclick="copyPix()" id="pix-text">CLIQUE PARA COPIAR</div>
+            <div id="dep-step-2" style="display:none;">
+                <div class="qr-area"><img id="qr-img-gold" style="width: 180px; height: 180px; display: block;"></div>
+                <div class="pix-copy-box" id="pix-text-gold" onclick="copyPix()">CLIQUE PARA COPIAR</div>
                 <p style="color: var(--gold); font-weight: 900; margin-top: 20px; font-size: 12px;">AGUARDANDO PAGAMENTO...</p>
             </div>
         </div>
     </div>
 
-    <!-- MODAL AUTH -->
-    <div id="modal-auth" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModals()">✕</span>
-            <h2 id="auth-title" style="color: var(--gold); margin-bottom: 20px;">Acessar VIP</h2>
-            <input type="tel" id="auth-phone" class="dep-input" style="font-size: 18px;" placeholder="Celular (DDD)">
-            <input type="password" id="auth-pass" class="dep-input" style="font-size: 18px;" placeholder="Sua Senha">
-            <button class="btn-gold" style="width:100%;" onclick="auth()">Entrar Agora</button>
-            <p style="margin-top: 20px; font-size: 12px; opacity: 0.5; cursor: pointer;" onclick="launchGuest()">Entrar como Convidado</p>
-        </div>
-    </div>
-
     <script>
         const API = '/api';
+        let isLogin = true;
+
         function mask(i) {
             let v = i.value.replace(/\D/g, "");
             if(!v) return;
             i.value = "R$ " + (parseInt(v)/100).toFixed(2).replace('.',',').replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
         }
         function getVal(s) { return parseFloat(s.replace(/\D/g, '').replace(/^0+/, '')) / 100; }
-        
-        function showAuth() { document.getElementById('modal-auth').style.display = 'flex'; }
-        function openDeposit() { 
-            document.getElementById('modal-deposit').style.display = 'flex';
-            document.getElementById('step-1').style.display = 'block';
-            document.getElementById('step-2').style.display = 'none';
+
+        function showAuth(login) {
+            isLogin = login;
+            document.getElementById('auth-title').innerText = isLogin ? 'Acessar VIP' : 'Criar Conta VIP';
+            document.getElementById('reg-fields').style.display = isLogin ? 'none' : 'block';
+            document.getElementById('auth-modal').style.display = 'flex';
         }
-        function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+        function toggleAuth() { showAuth(!isLogin); }
+        function closeModals() { document.querySelectorAll('.modal-overlay, .premium-modal').forEach(m => m.style.display = 'none'); }
+        
+        function openPremiumDeposit() {
+            document.getElementById('modal-premium-deposit').style.display = 'flex';
+            document.getElementById('dep-step-1').style.display = 'block';
+            document.getElementById('dep-step-2').style.display = 'none';
+        }
 
         function setOffer(v) {
-            document.getElementById('dep-amount').value = "R$ " + v.toFixed(2).replace('.',',');
-            generate();
+            document.getElementById('dep-amount-gold').value = "R$ " + v.toFixed(2).replace('.',',');
+            generateGold();
         }
 
-        async function generate() {
-            const amt = getVal(document.getElementById('dep-amount').value);
-            const btn = document.getElementById('gen-btn');
+        async function generateGold() {
+            const amt = getVal(document.getElementById('dep-amount-gold').value);
+            const btn = document.getElementById('btn-gen-gold');
             btn.innerText = 'GERANDO...';
             const res = await fetch(API + '/payment/deposit', {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ft_token') },
@@ -138,25 +194,27 @@
             });
             const d = await res.json();
             if(d.success) {
-                document.getElementById('qr-img').src = d.qr_code;
-                document.getElementById('pix-text').innerText = d.copy_paste;
-                document.getElementById('step-1').style.display = 'none';
-                document.getElementById('step-2').style.display = 'block';
+                document.getElementById('qr-img-gold').src = d.qr_code;
+                document.getElementById('pix-text-gold').innerText = d.copy_paste;
+                document.getElementById('dep-step-1').style.display = 'none';
+                document.getElementById('dep-step-2').style.display = 'block';
             } else alert(d.message);
             btn.innerText = 'Gerar PIX VIP';
         }
 
         function copyPix() {
-            navigator.clipboard.writeText(document.getElementById('pix-text').innerText);
+            navigator.clipboard.writeText(document.getElementById('pix-text-gold').innerText);
             alert('Copiado!');
         }
 
-        async function auth() {
+        async function doAuth() {
             const phone = document.getElementById('auth-phone').value;
             const password = document.getElementById('auth-pass').value;
-            const res = await fetch(API + '/auth/login', {
+            const fullName = document.getElementById('reg-name').value;
+            const path = isLogin ? '/auth/login' : '/auth/register';
+            const res = await fetch(API + path, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, password })
+                body: JSON.stringify({ phone, password, fullName })
             });
             const d = await res.json();
             if(d.success) { localStorage.setItem('ft_token', d.token); load(); closeModals(); }
@@ -169,18 +227,19 @@
             const res = await fetch(API + '/user/me', { headers: { 'Authorization': t } });
             const d = await res.json();
             if(d.success) {
-                document.getElementById('landing-home').style.display = 'none';
-                document.getElementById('dashboard').style.display = 'block';
-                document.getElementById('auth-btns').style.display = 'none';
+                document.getElementById('landing-content').style.display = 'none';
+                document.getElementById('dashboard-section').style.display = 'block';
+                document.getElementById('nav-login-btn').style.display = 'none';
+                document.getElementById('nav-reg-btn').style.display = 'none';
                 document.getElementById('logout-btn').style.display = 'block';
-                document.getElementById('user-balance').innerText = 'R$ ' + (d.user.real_balance + d.user.bonus_balance).toFixed(2).replace('.', ',');
+                document.getElementById('user-name').innerText = d.user.fullName.split(' ')[0];
+                document.getElementById('real-balance').innerText = 'R$ ' + d.user.real_balance.toFixed(2).replace('.', ',');
+                document.getElementById('bonus-balance').innerText = 'R$ ' + d.user.bonus_balance.toFixed(2).replace('.', ',');
             }
         }
 
-        async function launchGame() { window.location.href = '/FortuneTiger/index.html?token=' + localStorage.getItem('ft_token'); }
-        async function launchGuest() { window.location.href = '/FortuneTiger/index.html?token=guest_' + Math.random().toString(36).substring(7); }
+        function launchGame() { window.location.href = '/FortuneTiger/index.html?token=' + localStorage.getItem('ft_token'); }
         function logout() { localStorage.removeItem('ft_token'); window.location.reload(); }
-        
         load();
     </script>
 </body>
