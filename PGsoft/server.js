@@ -19,6 +19,7 @@ app.use(
 
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+app.use(bodyParser.text({ type: '*/*', limit: '10mb' })); // Captura corpos sem Content-Type ou com tipo desconhecido
 
 // Servir o Jogo e a Dashboard Standalone
 app.use('/FortuneTiger', express.static(path.join(__dirname, '../FortuneTiger')));
@@ -374,13 +375,25 @@ app.post('/api/data/:token/spin', (req, res) => {
   let cs = req.body.cs || req.query.cs;
   let ml = req.body.ml || req.query.ml;
   
-  // Tenta pescar da raw string caso o express tenha feito parsing errado (ex: {'cs=0.10&ml=10': ''})
+  // Tenta pescar da raw string caso o express tenha feito parsing errado ou se for raw text
   if (!cs || !ml) {
-      const raw = Object.keys(req.body).join('&') + '&' + req.url;
+      let raw = '';
+      if (typeof req.body === 'string') {
+          raw = req.body;
+      } else {
+          raw = Object.keys(req.body).join('&');
+      }
+      raw += '&' + req.url;
+      
       const matchCs = raw.match(/cs=([\d\.\,]+)/);
       const matchMl = raw.match(/ml=([\d\.\,]+)/);
+      const matchB = raw.match(/b=([\d\.\,]+)/);
+      const matchBet = raw.match(/betAmount=([\d\.\,]+)/);
+      
       if (matchCs) cs = matchCs[1];
       if (matchMl) ml = matchMl[1];
+      if (matchB && !betAmount) betAmount = matchB[1];
+      if (matchBet && !betAmount) betAmount = matchBet[1];
   }
 
   if (cs) cs = cs.toString().replace(',', '.');
