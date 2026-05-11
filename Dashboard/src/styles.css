@@ -1,0 +1,160 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-gold: var(--gold);
+  --color-gold-glow: var(--gold-glow);
+  --color-crimson: var(--crimson);
+  --font-display: "Cinzel", "Playfair Display", serif;
+}
+
+:root {
+  --radius: 0.75rem;
+  /* Cinematic asian casino palette */
+  --background: oklch(0.13 0.02 25);
+  --foreground: oklch(0.97 0.02 85);
+  --card: oklch(0.18 0.04 25 / 0.6);
+  --card-foreground: oklch(0.97 0.02 85);
+  --popover: oklch(0.16 0.04 25);
+  --popover-foreground: oklch(0.97 0.02 85);
+  --primary: oklch(0.78 0.16 80);              /* gold */
+  --primary-foreground: oklch(0.15 0.04 25);
+  --secondary: oklch(0.45 0.22 25);            /* crimson */
+  --secondary-foreground: oklch(0.98 0.01 85);
+  --muted: oklch(0.22 0.03 25);
+  --muted-foreground: oklch(0.72 0.04 80);
+  --accent: oklch(0.78 0.16 80);
+  --accent-foreground: oklch(0.15 0.04 25);
+  --destructive: oklch(0.55 0.24 25);
+  --destructive-foreground: oklch(0.98 0.01 85);
+  --border: oklch(0.78 0.16 80 / 0.25);
+  --input: oklch(0.78 0.16 80 / 0.2);
+  --ring: oklch(0.78 0.16 80);
+
+  --gold: oklch(0.82 0.17 82);
+  --gold-glow: oklch(0.88 0.18 88);
+  --crimson: oklch(0.42 0.22 25);
+
+  --gradient-gold: linear-gradient(135deg, oklch(0.88 0.18 88) 0%, oklch(0.7 0.18 70) 100%);
+  --gradient-fire: radial-gradient(ellipse at center, oklch(0.55 0.25 25 / 0.6) 0%, transparent 70%);
+  --gradient-hero: linear-gradient(180deg, oklch(0.08 0.02 25) 0%, oklch(0.13 0.04 25) 50%, oklch(0.08 0.02 25) 100%);
+
+  --shadow-gold: 0 10px 40px -10px oklch(0.78 0.16 80 / 0.5);
+  --shadow-fire: 0 0 60px oklch(0.55 0.25 25 / 0.4);
+  --glow-gold: 0 0 20px oklch(0.82 0.17 82 / 0.6), 0 0 40px oklch(0.82 0.17 82 / 0.3);
+
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+.dark {
+  /* Already dark by default */
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html, body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: "Inter", system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+  }
+}
+
+@layer utilities {
+  .text-gradient-gold {
+    background: var(--gradient-gold);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .bg-gradient-gold { background: var(--gradient-gold); }
+  .bg-gradient-hero { background: var(--gradient-hero); }
+  .glow-gold { box-shadow: var(--glow-gold); }
+  .shadow-gold { box-shadow: var(--shadow-gold); }
+  .shadow-fire { box-shadow: var(--shadow-fire); }
+  .border-gold { border-color: var(--gold); }
+  .text-gold { color: var(--gold); }
+
+  .ornate-frame {
+    position: relative;
+    border: 1px solid oklch(0.78 0.16 80 / 0.4);
+    background: linear-gradient(135deg, oklch(0.18 0.04 25 / 0.8), oklch(0.13 0.02 25 / 0.9));
+    backdrop-filter: blur(12px);
+  }
+  .ornate-frame::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, transparent, oklch(0.82 0.17 82 / 0.1), transparent);
+    pointer-events: none;
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-20px) scale(1.02); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 30px oklch(0.82 0.17 82 / 0.4), 0 0 60px oklch(0.82 0.17 82 / 0.2); }
+  50% { box-shadow: 0 0 50px oklch(0.82 0.17 82 / 0.7), 0 0 100px oklch(0.82 0.17 82 / 0.4); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes ember {
+  0% { transform: translateY(100vh) translateX(0); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translateY(-10vh) translateX(40px); opacity: 0; }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-float-slow { animation: float-slow 6s ease-in-out infinite; }
+.animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+.animate-fade-up { animation: fade-up 0.8s ease-out both; }
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, oklch(0.88 0.18 88 / 0.3), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2.5s infinite;
+}

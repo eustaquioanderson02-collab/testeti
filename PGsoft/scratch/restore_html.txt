@@ -1,0 +1,23 @@
+        let pendingDeposits = [];
+        let statusInterval = null;
+
+        async function loadDashboard() {
+            const token = localStorage.getItem('ft_token');
+            if (!token) return;
+            try {
+                const res = await fetch(API_URL + '/user/me', { headers: { 'Authorization': token } });
+                const data = await res.json();
+                if (data.success) {
+                    currentUser = data.user;
+                    document.getElementById('landing-content').style.display = 'none';
+                    document.getElementById('dashboard-section').style.display = 'block';
+                    document.getElementById('nav-login-btn').style.display = 'none';
+                    document.getElementById('nav-reg-btn').style.display = 'none';
+                    document.getElementById('logout-btn').style.display = 'block';
+
+                    document.getElementById('user-name').innerText = currentUser.fullName.split(' ')[0];
+                    document.getElementById('real-balance').innerText = 'R$ ' + currentUser.real_balance.toFixed(2).replace('.', ',');
+                    document.getElementById('bonus-balance').innerText = 'R$ ' + currentUser.bonus_balance.toFixed(2).replace('.', ',');
+                } else logout();
+            } catch(e) { console.error('Erro ao carregar dashboard:', e); }
+        }

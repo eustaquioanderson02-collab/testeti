@@ -1,0 +1,434 @@
+const express = require('express');
+const app = express();
+const port = 3000;
+const cors = require('cors');
+const helmet = require('helmet');
+
+
+app.use(express.json());
+
+app.use(cors());
+
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+    },
+  })
+);
+// Token fixo
+const fixedToken = "8f77eeb8-c279-4e64-bf53-09eb4192d1a6";
+
+// Rota GET para os dados do usuário com validação de token
+app.get('/api/data/:token/session', (req, res) => {
+  const clientToken = req.params.token;
+
+  if (clientToken === fixedToken) {
+    const responseData = {
+      success: true,
+      data: {
+        user_name: "Guest",
+        credit: 600305,
+        num_line: 5,
+        line_num: 10,
+        bet_amount: 100,
+        free_num: 0,
+        free_total: -1,
+        free_amount: 567000,
+        free_multi: 0,
+        freespin_mode: 0,
+        multiple_list: [],
+        credit_line: 3,
+        buy_feature: 50,
+        buy_max: 1300,
+        feature: {},
+        total_way: 36,
+        multipy: 0,
+        icon_data: [
+          "Symbol_2",
+          "Symbol_0",
+          "Symbol_2",
+          "Symbol_0",
+          "Symbol_0",
+          "Symbol_0",
+          "Symbol_0",
+          "Symbol_0",
+          "Symbol_0",
+          "_blank",
+          "Symbol_0",
+          "_blank"
+        ],
+        active_lines: [
+          {
+            "name": "Symbol_2",
+            "index": 1,
+            "payout": 30,
+            "combine": 3,
+            "way_243": 1,
+            "multiply": 0,
+            "win_amount": 9000,
+            "active_icon": [1, 2, 3]
+          },
+          // Adicione outros objetos de linha ativa conforme necessário
+        ],
+        drop_line: [],
+        currency_prefix: "\u0e3f",
+        currency_suffix: "",
+        currency_thousand: ".",
+        currency_decimal: ",",
+        bet_size_list: ["0.2", "2", "20", "100"],
+        previous_session: false,
+        game_state: "",
+        feature_symbol: "",
+        feature_result: {
+          "left_feature": 9,
+          "select_count": 0,
+          "right_feature": 9,
+          "select_finish": false,
+          "access_feature": false
+        }
+      },
+      message: "Load sessions success"
+    };
+    res.json(responseData);
+  } else {
+    res.status(401).json({ error: 'Token de autenticação inválido' });
+  }
+});
+
+app.get('/api/data/:token/icons', (req, res) => {
+  const clientToken = req.params.token;
+  const iconsData = {
+      "success": true,
+      "data": [
+          {
+              "icon_name": "Symbol_0",
+              "win_1": 0,
+              "win_2": 0,
+              "win_3": 300,
+              "win_4": 0,
+              "win_5": 0,
+              "win_6": 0,
+              "wild_card": null,
+              "free_spin": null,
+              "free_num": 0,
+              "scaler_spin": null
+          },
+          {
+              "icon_name": "Symbol_1",
+              "win_1": 0,
+              "win_2": 0,
+              "win_3": 50,
+              "win_4": 0,
+              "win_5": 0,
+              "win_6": 0,
+              "wild_card": null,
+              "free_spin": null,
+              "free_num": 0,
+              "scaler_spin": null
+          },
+          {
+              "icon_name": "Symbol_2",
+              "win_1": 0,
+              "win_2": 0,
+              "win_3": 30,
+              "win_4": 0,
+              "win_5": 0,
+              "win_6": 0,
+              "wild_card": null,
+              "free_spin": null,
+              "free_num": 0,
+              "scaler_spin": null
+          },
+          {
+              "icon_name": "Symbol_3",
+              "win_1": 0,
+              "win_2": 0,
+              "win_3": 15,
+              "win_4": 0,
+              "win_5": 0,
+              "win_6": 0,
+              "wild_card": null,
+              "free_spin": null,
+              "free_num": 0,
+              "scaler_spin": null
+          },
+          {
+              "icon_name": "Symbol_4",
+              "win_1": 0,
+              "win_2": 0,
+              "win_3": 10,
+              "win_4": 0,
+              "win_5": 0,
+              "win_6": 0,
+              "wild_card": null,
+              "free_spin": null,
+              "free_num": 0,
+              "scaler_spin": null
+          },
+          {
+              "icon_name": "Symbol_5",
+              "win_1": 0,
+              "win_2": 0,
+              "win_3": 5,
+              "win_4": 0,
+              "win_5": 0,
+              "win_6": 0,
+              "wild_card": null,
+              "free_spin": null,
+              "free_num": 0,
+              "scaler_spin": null
+          },
+          {
+              "icon_name": "Symbol_6",
+              "win_1": 0,
+              "win_2": 0,
+              "win_3": 4,
+              "win_4": 0,
+              "win_5": 0,
+              "win_6": 0,
+              "wild_card": null,
+              "free_spin": null,
+              "free_num": 0,
+              "scaler_spin": null
+          }
+      ],
+      "message": "List icons success"
+  };
+  res.json(iconsData);
+});
+
+// Rota POST para "Empty token"
+app.post('/api/empty-token', (req, res) => {
+  res.status(400).json({
+    success: false,
+    message: "Empty token"
+  });
+});
+
+app.post('/api/data/:token/spin', (req, res) => {
+  const clientToken = req.params.token;
+
+  if (clientToken === fixedToken) {
+    // Lógica para gerar dados do jogo aqui
+    const responseData = {
+      success: true,
+      data: {
+        credit: 6278.6,
+        freemode: true,
+        jackpot: 0,
+        free_spin: 0,
+        free_num: 0,
+        scaler: 0,
+        num_line: 5,
+        bet_amount: 0.2,
+        feature_symbol: "",
+        pull: {
+          WinAmount: 0,
+          WinOnDrop: 0,
+          TotalWay: 0,
+          FreeSpin: -1,
+          HasNewSpawn: false,
+          HasPlaceHolder: false,
+          LastMultiply: 0,
+          WildFixedIcons: [],
+          HasJackpot: false,
+          HasScatter: false,
+          CountScatter: 0,
+          WildColumIcon: "",
+          MultipyScatter: 0,
+          MultiplyCount: 1,
+          SlotIcons: [
+            "Symbol_5",
+            "Symbol_3",
+            "Symbol_6",
+            "Symbol_1",
+            "Symbol_4",
+            "Symbol_6",
+            "Symbol_2",
+            "Symbol_4",
+            "Symbol_3",
+            "_blank",
+            "Symbol_4",
+            "_blank"
+          ],
+          ActiveIcons: [],
+          ActiveLines: [],
+          WinLogs: [
+            "[BET] betLevel: 0.2, betSize:1, baseBet:5.00 => 1"
+          ],
+          DropLine: 0,
+          DropLineData: [],
+          MultipleList: [],
+          FeatureResult: {
+            left_feature: 9,
+            select_count: 0,
+            right_feature: 9,
+            select_finish: false,
+            access_feature: false
+          }
+        },
+      },
+      message: "Spin success",
+    };
+
+    res.json(responseData);
+  } else {
+    res.status(401).json({ error: 'Token de autenticação inválido' });
+  }
+});
+
+app.get('/api/data/:token/histories', (req, res) => {
+  const responseData = {
+      success: true,
+      data: {
+          totalRecord: 7,
+          totalPage: 1,
+          perPage: 12,
+          currentPage: 1,
+          displayTotal: 7,
+          totalBet: 7,
+          totalWin: 974.6,
+          totalProfit: 967.6,
+          items: [
+              {
+                  id: "26158a2f-2b50-49ca-964a-3c9e3dba26ac",
+                  spin_date: "10/12",
+                  spin_hour: "08:17:12",
+                  transaction: "84QOjQcChBBk7DF",
+                  bet_amount: 0.2,
+                  win_amount: 0,
+                  free_num: 0,
+                  multipy: 0,
+                  credit_line: "1.00",
+                  total_bet: 1,
+                  profit: -1,
+                  balance: 5968.6,
+                  total_way: 0,
+                  drop_feature: 0,
+                  drop_normal: 0
+              },
+              {
+                  id: "d8b60992-fb9b-454b-aa19-85d64bcd3a39",
+                  spin_date: "10/12",
+                  spin_hour: "08:16:18",
+                  transaction: "cmdSgc4U2oqKvlx",
+                  bet_amount: 0.2,
+                  win_amount: 64,
+                  free_num: 1,
+                  multipy: 0,
+                  credit_line: "1.00",
+                  total_bet: 1,
+                  profit: 63,
+                  balance: 5905.6,
+                  total_way: 0,
+                  drop_feature: 0,
+                  drop_normal: 0
+              },
+              {
+                  id: "82b8e738-00bb-4d4f-9b56-2deb87715dc2",
+                  spin_date: "10/12",
+                  spin_hour: "08:15:57",
+                  transaction: "eQefO6cHrry4ltm",
+                  bet_amount: 0.2,
+                  win_amount: 7.6,
+                  free_num: 1,
+                  multipy: 0,
+                  credit_line: "1.00",
+                  total_bet: 1,
+                  profit: 6.6,
+                  balance: 5899,
+                  total_way: 0,
+                  drop_feature: 0,
+                  drop_normal: 0
+              },
+              {
+                  id: "9709d295-3b0e-4f2b-8cc1-7f73e7d540e5",
+                  spin_date: "10/12",
+                  spin_hour: "07:23:30",
+                  transaction: "dKWVTByt3XmlrLb",
+                  bet_amount: 0.2,
+                  win_amount: 600,
+                  free_num: 1,
+                  multipy: 0,
+                  credit_line: "1.00",
+                  total_bet: 1,
+                  profit: 599,
+                  balance: 5300,
+                  total_way: 0,
+                  drop_feature: 0,
+                  drop_normal: 0
+              },
+              {
+                  id: "5d418318-638a-491f-ad1d-49154629c061",
+                  spin_date: "10/12",
+                  spin_hour: "07:23:06",
+                  transaction: "9KcHkauuPZ6Wjkr",
+                  bet_amount: 0.2,
+                  win_amount: 1,
+                  free_num: 1,
+                  multipy: 0,
+                  credit_line: "1.00",
+                  total_bet: 1,
+                  profit: 0,
+                  balance: 5300,
+                  total_way: 0,
+                  drop_feature: 0,
+                  drop_normal: 0
+              },
+              {
+                  id: "a258fa16-c4a7-4e1b-8a81-a22fce81b3ca",
+                  spin_date: "10/12",
+                  spin_hour: "06:36:40",
+                  transaction: "Z4I1JONFjWamTvm",
+                  bet_amount: 0.2,
+                  win_amount: 2,
+                  free_num: 1,
+                  multipy: 0,
+                  credit_line: "1.00",
+                  total_bet: 1,
+                  profit: 1,
+                  balance: 5299,
+                  total_way: 0,
+                  drop_feature: 0,
+                  drop_normal: 0
+              },
+              {
+                  id: "5dbb08c9-fd27-48e8-b9d9-f7f8dbf792b1",
+                  spin_date: "10/12",
+                  spin_hour: "06:35:14",
+                  transaction: "JE3KlpqGLMiAS09",
+                  bet_amount: 0.2,
+                  win_amount: 300,
+                  free_num: 1,
+                  multipy: 0,
+                  credit_line: "1.00",
+                  total_bet: 1,
+                  profit: 299,
+                  balance: 5000,
+                  total_way: 0,
+                  drop_feature: 0,
+                  drop_normal: 0
+              }
+          ]
+      },
+      message: "Load log success"
+  };
+
+  res.json(responseData);
+});
+
+app.post('/api/data/:token/histories', (req, res) => {
+  const responseData = {
+      success: false,
+      message: "Session is not found"
+  };
+
+  res.json(responseData);
+});
+
+app.listen(port, () => {
+  console.log(`API está rodando em http://localhost:${port}`);
+  console.log(`Token de autenticação: ${fixedToken}`);
+});

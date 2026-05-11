@@ -1,0 +1,46 @@
+// Consultar status de um depósito específico e atualizar se pago
+app.get('/api/payment/check-status/:id', async (req, res) => {
+  const transactionId = req.params.id;
+  const token = req.headers.authorization;
+
+  try {
+    const fullUrl = `${config.sigilo_pay.api_url}/gateway/transactions/${transactionId}`;
+    const response = await axios.get(fullUrl, {
+      headers: { 
+        'x-public-key': config.sigilo_pay.public_key,
+        'x-secret-key': config.sigilo_pay.secret_key
+      }
+    });
+
+    const tx = response.data;
+    
+    if (tx && (tx.status === 'PAID' || tx.status === 'COMPLETED')) {
+      db.query('SELECT * FROM deposits WHERE id = ? AND status = "PENDING"', [transactionId], (err, results) => {
+        if (!err && results.length > 0) {
+          const deposit = results[0];
+          const depositAmount = deposit.amount;
+          
+          db.query('UPDATE deposits SET status = "COMPLETED" WHERE id = ?', [transactionId]);
+          
+          db.query('SELECT * FROM fortune_data WHERE token = ?', [token], (uErr, uResults) => {
+            if (!uErr && uResults.length > 0) {
+              const user = uResults[0];
+              const newBalance = user.real_balance + depositAmount;
+              db.query('UPDATE fortune_data SET real_balance = ?, credit = credit + ?, is_first_deposit = 1 WHERE token = ?', 
+                [newBalance, depositAmount, token]);
+              console.log(`Saldo atualizado (R$ ${depositAmount}) via consulta para: ${user.email}`);
+            }
+          });
+          return res.json({ success: true, status: 'PAID', balance_updated: true });
+        } else {
+          return res.json({ success: true, status: 'PAID', balance_updated: false });
+        }
+      });
+    } else {
+      res.json({ success: true, status: tx ? tx.status : 'PENDING' });
+    }
+  } catch (err) {
+    console.error('Erro ao consultar status:', err.response?.data || err.message);
+    res.status(500).json({ success: false });
+  }
+});

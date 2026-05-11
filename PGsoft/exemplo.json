@@ -1,0 +1,65 @@
+{
+    "event": "TRANSACTION_CREATED",
+    "token": "w7v8ournfp",
+    "offerCode": "ABCK181",
+    "client": {
+        "id": "4qb4l71y2iqd7cek",
+        "name": "John Doe",
+        "email": "jondoe@gmail.com",
+        "phone": "(11) 9 8888-7777",
+        "cpf": "123.456.789-10",
+        "cnpj": null,
+        "address": {
+            "country": "BR",
+            "zipCode": "01304-000",
+            "state": "SP",
+            "city": "São Paulo",
+            "neighborhood": "Consolação",
+            "street": "Rua Augusta",
+            "number": "6312",
+            "complement": "6 andar"
+        }
+    },
+    "transaction": {
+        "id": "1pned18asp",
+        "status": "COMPLETED",
+        "paymentMethod": "CREDIT_CARD",
+        "originalCurrency": "USD",
+        "originalAmount": 20,
+        "amount": 100,
+        "currency": "BRL",
+        "exchangeRate": 5,
+        "installments": 3,
+        "createdAt": "2026-05-06T17:45:55.355Z",
+        "payedAt": null,
+        "pixInformation": null,
+        "subscription": null,
+        "orderItems": [
+            {
+                "id": "wdod0abvdt",
+                "price": 100,
+                "product": {
+                    "id": "oigtz177jp",
+                    "name": "Curso de marketing",
+                    "externalId": "KSA912"
+                }
+            }
+        ],
+        "trackProps": {
+            "utm_id": "12345",
+            "utm_source": "facebook",
+            "utm_medium": "cpc",
+            "utm_campaign": "lancamento",
+            "utm_content": "newsletter",
+            "utm_term": "summer+venda",
+            "fbc": "fb.1.1234567890.0987654321",
+            "fbp": "fb.1.0987654321.1234567890",
+            "ip": "179.241.195.127",
+            "country": "BR",
+            "user_agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36",
+            "zip_code": "01304-000",
+            "city": "São Paulo",
+            "state": "SP"
+        }
+    }
+}

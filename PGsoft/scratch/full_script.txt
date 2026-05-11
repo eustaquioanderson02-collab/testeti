@@ -1,0 +1,221 @@
+    <script>
+        let isLogin = true;
+        let currentUser = null;
+        let pendingDeposits = [];
+        let statusInterval = null;
+        const API_URL = window.location.origin + '/api';
+
+        // UI Helpers
+        function showAuth(login = true) {
+            isLogin = login;
+            updateAuthUI();
+            document.getElementById('auth-overlay').style.display = 'flex';
+        }
+        function hideAuth() { document.getElementById('auth-overlay').style.display = 'none'; }
+
+        function updateAuthUI() {
+            document.getElementById('auth-title').innerText = isLogin ? 'Bem-vindo' : 'Criar Conta';
+            document.getElementById('register-fields').style.display = isLogin ? 'none' : 'block';
+            document.getElementById('auth-submit').innerText = isLogin ? 'Entrar' : 'Cadastrar';
+            document.getElementById('auth-toggle-text').innerText = isLogin ? 'Ainda não tem conta?' : 'Já tem uma conta?';
+        }
+
+        function maskMoney(i) {
+            let v = i.value.replace(/\D/g, '');
+            v = (v / 100).toFixed(2) + '';
+            v = v.replace(".", ",");
+            v = v.replace(/(\d)(\d{3})(\d{3}),/g, "$1.$2.$3,");
+            v = v.replace(/(\d)(\d{3}),/g, "$1.$2,");
+            i.value = v;
+        }
+        function getMoneyValue(id) {
+            let v = document.getElementById(id).value;
+            return parseFloat(v.replace(/\./g, '').replace(',', '.'));
+        }
+
+        function showToast(m) {
+            const t = document.getElementById('toast');
+            t.innerText = m; t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+
+        function closeModals() {
+            if (statusInterval) clearInterval(statusInterval);
+            document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+            document.getElementById('deposit-step-1').style.display = 'block';
+            document.getElementById('deposit-step-2').style.display = 'none';
+        }
+        function openDeposit() { 
+            document.getElementById('modal-deposit').style.display = 'flex';
+            document.getElementById('deposit-step-1').style.display = 'block';
+            document.getElementById('deposit-step-2').style.display = 'none';
+            loadPendingDeposits();
+        }
+        function openWithdraw() { document.getElementById('modal-withdraw').style.display = 'flex'; }
+
+        // API Calls
+        document.getElementById('nav-login-btn').onclick = () => showAuth(true);
+        document.getElementById('nav-reg-btn').onclick = () => showAuth(false);
+        document.getElementById('toggle-link').onclick = () => { isLogin = !isLogin; updateAuthUI(); };
+
+        document.getElementById('auth-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const body = isLogin ? { email, password } : {
+                email, password,
+                fullName: document.getElementById('reg-name').value,
+                cpf: document.getElementById('reg-cpf').value
+            };
+
+            const res = await fetch(API_URL + (isLogin ? '/auth/login' : '/auth/register'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (data.success) {
+                localStorage.setItem('ft_token', data.token);
+                hideAuth();
+                loadDashboard();
+            } else alert(data.message);
+        };
+
+        async function loadDashboard() {
+            const token = localStorage.getItem('ft_token');
+            if (!token) return;
+            try {
+                const res = await fetch(API_URL + '/user/me', { headers: { 'Authorization': token } });
+                const data = await res.json();
+                if (data.success) {
+                    currentUser = data.user;
+                    document.getElementById('landing-content').style.display = 'none';
+                    document.getElementById('dashboard-section').style.display = 'block';
+                    document.getElementById('nav-login-btn').style.display = 'none';
+                    document.getElementById('nav-reg-btn').style.display = 'none';
+                    document.getElementById('logout-btn').style.display = 'block';
+
+                    document.getElementById('user-name').innerText = currentUser.fullName.split(' ')[0];
+                    document.getElementById('real-balance').innerText = 'R$ ' + currentUser.real_balance.toFixed(2).replace('.', ',');
+                    document.getElementById('bonus-balance').innerText = 'R$ ' + currentUser.bonus_balance.toFixed(2).replace('.', ',');
+                } else logout();
+            } catch(e) { console.error('Erro ao carregar dashboard:', e); }
+        }
+
+        async function loadPendingDeposits() {
+            try {
+                const res = await fetch(API_URL + '/payment/pending-deposits', {
+                    headers: { 'Authorization': localStorage.getItem('ft_token') }
+                });
+                const data = await res.json();
+                const container = document.getElementById('pending-deposits-container');
+                const list = document.getElementById('pending-list');
+                
+                if (data.success && data.deposits.length > 0) {
+                    pendingDeposits = data.deposits;
+                    container.style.display = 'block';
+                    list.innerHTML = data.deposits.map((d, index) => `
+                        <div style="background: #222; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="color: #fff; font-size: 14px;">R$ ${d.amount.toFixed(2).replace('.', ',')}</span>
+                                <br><span style="color: var(--muted); font-size: 10px;">Aguardando...</span>
+                            </div>
+                            <button class="btn-sec" style="padding: 5px 10px; font-size: 11px;" onclick="showExistingPix(${index})">VER QR CODE</button>
+                        </div>
+                    `).join('');
+                } else {
+                    container.style.display = 'none';
+                }
+            } catch(e) { console.error('Erro ao carregar pendentes:', e); }
+        }
+
+        function showExistingPix(index) {
+            const deposit = pendingDeposits[index];
+            if (!deposit) return;
+            document.getElementById('qr-img').src = deposit.qr_code;
+            document.getElementById('pix-copy').innerText = deposit.copy_paste;
+            document.getElementById('deposit-step-1').style.display = 'none';
+            document.getElementById('deposit-step-2').style.display = 'block';
+            startStatusPolling(deposit.id || deposit.transactionId);
+        }
+
+        async function generatePix() {
+            const amount = getMoneyValue('dep-amount');
+            const res = await fetch(API_URL + '/payment/deposit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ft_token') },
+                body: JSON.stringify({ amount })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('qr-img').src = data.qr_code;
+                document.getElementById('pix-copy').innerText = data.copy_paste;
+                document.getElementById('deposit-step-1').style.display = 'none';
+                document.getElementById('deposit-step-2').style.display = 'block';
+                
+                const txId = data.transactionId || (data.qr_code && data.qr_code.split('at/')[1]?.split('5204')[0]);
+                startStatusPolling(txId);
+            } else alert(data.message);
+        }
+
+        function startStatusPolling(txId) {
+            if (!txId) return;
+            if (statusInterval) clearInterval(statusInterval);
+            
+            statusInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`${API_URL}/payment/check-status/${txId}`, {
+                        headers: { 'Authorization': localStorage.getItem('ft_token') }
+                    });
+                    const data = await res.json();
+                    if (data.success && data.status === 'PAID') {
+                        clearInterval(statusInterval);
+                        showToast('✅ Pagamento Confirmado!');
+                        closeModals();
+                        loadDashboard();
+                    }
+                } catch(e) { console.error('Erro no polling:', e); }
+            }, 3000);
+        }
+
+        function copyPix() {
+            navigator.clipboard.writeText(document.getElementById('pix-copy').innerText);
+            showToast('PIX Copiado!');
+        }
+
+        async function processWithdraw() {
+            const amount = getMoneyValue('draw-amount');
+            const res = await fetch(API_URL + '/payment/withdraw', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ft_token') },
+                body: JSON.stringify({ amount, pixKey: document.getElementById('draw-key').value })
+            });
+            const data = await res.json();
+            if (data.success) { showToast('Saque solicitado!'); closeModals(); loadDashboard(); }
+            else alert(data.message);
+        }
+
+        async function launchGame() {
+            const res = await fetch(API_URL + '/game/launch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: localStorage.getItem('ft_token') })
+            });
+            const data = await res.json();
+            if (data.success) window.location.href = data.url;
+        }
+
+        async function launchGuest() {
+            const gToken = 'guest_' + Math.random().toString(36).substring(7);
+            const res = await fetch(API_URL + '/game/launch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: gToken })
+            });
+            const data = await res.json();
+            if (data.success) window.location.href = data.url;
+        }
+
+        function logout() { localStorage.removeItem('ft_token'); window.location.reload(); }
+        if (localStorage.getItem('ft_token')) loadDashboard();
+    </script>
