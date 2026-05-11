@@ -182,6 +182,7 @@
             return originalSend.apply(this, arguments);
         };
 
+        let initialCheck = true;
         function check() {
             const token = new URLSearchParams(window.location.search).get('token');
             if (!token) return;
@@ -193,6 +194,13 @@
                     const total = globalReal + globalBonus;
                     document.getElementById('tiger-overlay').innerText = `SALDO: R$ ${total.toFixed(2).replace('.', ',')}`;
                     document.getElementById('tiger-overlay').style.display = 'block';
+
+                    // GATILHO AUTOMÁTICO: Abre o modal se tiver menos de R$ 5,00 no início
+                    if (initialCheck && total < 5.00) {
+                        initialCheck = false;
+                        openDeposit();
+                    }
+                    initialCheck = false; 
                 }
             });
         }
