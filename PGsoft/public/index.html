@@ -456,11 +456,17 @@
     <div id="modal-deposit" class="modal">
         <div class="modal-content">
             <span class="close-auth" onclick="closeModals()">&times;</span>
-            <h2 style="color:var(--gold);margin-bottom:10px;">Depositar via PIX</h2>
+            <h2 style="color:var(--gold);margin-bottom:15px; font-size: 26px;">Depositar via PIX</h2>
+            
+            <div style="background: rgba(255,204,0,0.1); border: 1px solid rgba(255,204,0,0.3); border-radius: 12px; padding: 15px; margin-bottom: 25px; text-align: left;">
+                <div style="font-size: 14px; color: #aaa; margin-bottom: 5px;">Aprovação Imediata</div>
+                <div style="font-size: 13px; color: var(--gold); line-height: 1.4;">Jogue sem interrupções. O PIX cai na hora!</div>
+            </div>
+
             <div id="deposit-step-1">
                 <div class="input-group">
                     <label id="min-dep-label">Valor (Mín. R$ 2,00)</label>
-                    <input type="text" id="dep-amount" value="2,00" oninput="maskMoney(this)">
+                    <input type="text" id="dep-amount" value="2,00" oninput="maskMoney(this)" style="font-size: 22px; text-align: center;">
                 </div>
                 <button class="btn-main" onclick="generatePix()">GERAR NOVO QR CODE</button>
 
